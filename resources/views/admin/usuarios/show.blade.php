@@ -1,0 +1,44 @@
+@extends('admin.layouts.app')
+
+@section('content')
+<div class="container-fluid px-4">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+        <h1 class="h3">Detalle de Usuario de App</h1>
+        <div>
+            <a href="{{ route('admin.usuarios-app.edit', $usuario) }}" class="btn btn-warning rounded-pill px-4">Editar</a>
+            <a href="{{ route('admin.usuarios-app.index') }}" class="btn btn-secondary rounded-pill px-4">Volver</a>
+        </div>
+    </div>
+
+    <div class="card shadow-sm border-0 rounded-4">
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>ID:</strong></div>
+                    <p>{{ $usuario->id }}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>Nombre de usuario:</strong></div>
+                    <p>{{ $usuario->nombre_usuario }}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>Departamento:</strong></div>
+                    <p>{{ ucfirst($usuario->departamento->nombre ?? 'N/A') }}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>Permisos:</strong></div>
+                    <p>{!! $usuario->puede_generar_documentos ? '<span class="badge bg-info">Genera documentos</span>' : '<span class="badge bg-secondary">Solo movimientos</span>' !!}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>Estado:</strong></div>
+                    <p>{!! $usuario->activo ? '<span class="badge bg-success">Activo</span>' : '<span class="badge bg-danger">Inactivo</span>' !!}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="border-bottom pb-2 mb-2"><strong>Registrado:</strong></div>
+                    <p>{{ $usuario->created_at->format('d/m/Y H:i') }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endsection

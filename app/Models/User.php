@@ -15,8 +15,37 @@ use Illuminate\Notifications\Notifiable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasApiTokens;
 
+    protected $fillable = [
+        'name',
+        'email',
+        'password',
+        'departamento_id',
+        'tipo_usuario', // admin, supervisor, operario
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+    ];
+
+    // Relación con departamento
+    public function departamento()
+    {
+        return $this->belongsTo(Departamento::class);
+    }
+
+    // Relación con movimientos
+    public function movimientos()
+    {
+        return $this->hasMany(MovimientoDepartamento::class);
+    }
     /**
      * Get the attributes that should be cast.
      *

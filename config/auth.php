@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\UsuarioDepartamento;
 
 return [
 
@@ -42,6 +43,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'api' => [
+            'driver' => 'sanctum',
+            'provider' => 'usuarios_departamento',
+        ],
     ],
 
     /*
@@ -64,7 +69,11 @@ return [
     'providers' => [
         'users' => [
             'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
+            'model' => User::class,
+        ],
+        'usuarios_departamento' => [
+            'driver' => 'eloquent',
+            'model' => UsuarioDepartamento::class,
         ],
 
         // 'users' => [
