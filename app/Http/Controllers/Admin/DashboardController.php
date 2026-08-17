@@ -9,6 +9,7 @@ use App\Models\DocumentoMantenimiento;
 use App\Models\DocumentoCapacitacion;
 use App\Models\MovimientoDepartamento;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
@@ -28,9 +29,8 @@ class DashboardController extends Controller
             ->where('fecha_hora', '>=', now()->subDays(6))
             ->groupBy('fecha')
             ->orderBy('fecha')
-            ->get()
             ->pluck('total', 'fecha')
-            ->toArray(); // ← convertido a array
+            ->toArray();
 
         // Rellenar fechas faltantes con 0
         $fechas = [];
@@ -38,7 +38,6 @@ class DashboardController extends Controller
             $fecha = now()->subDays($i)->toDateString();
             $fechas[$fecha] = $movimientosPorDia[$fecha] ?? 0;
         }
-        // $fechas ya es un array, no una Collection
 
         // Movimientos por departamento (últimos 30 días)
         $movimientosPorDepto = MovimientoDepartamento::select('departamento_id', DB::raw('COUNT(*) as total'))
@@ -47,10 +46,10 @@ class DashboardController extends Controller
             ->groupBy('departamento_id')
             ->get()
             ->map(fn($item) => [
-                'nombre' => $item->departamento->nombre,
+                'nombre' => $item->departamento->nombre ?? 'Sin departamento',
                 'total' => $item->total
             ])
-            ->toArray(); // ← convertido a array
+            ->toArray();
 
         // Documentos de mantenimiento por mes (últimos 6 meses)
         $docPorMes = DocumentoMantenimiento::select(
@@ -62,14 +61,37 @@ class DashboardController extends Controller
             ->orderBy('mes')
             ->get()
             ->map(fn($item) => [
-                'mes' => \Carbon\Carbon::parse($item->mes)->format('M Y'),
+                'mes' => Carbon::parse($item->mes)->format('M Y'),
                 'total' => $item->total
             ])
-            ->toArray(); // ← convertido a array
+            ->toArray();
+
+        // Datos adicionales útiles para el dashboard
+        $ultimosMantenimientos = DocumentoMantenimiento::with(['asignacion.unidad', 'asignacion.operador'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $ultimasCapacitaciones = DocumentoCapacitacion::with(['asignacion.unidad', 'asignacion.operador'])
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
+            ->get();
+
+        $unidadesSinAsignar = Unidad::whereDoesntHave('asignaciones', function($query) {
+            $query->where('vigente', true);
+        })->count();
 
         return view('admin.dashboard.index', compact(
-            'totalUnidades', 'totalOperadores', 'totalMantenimientos', 'totalCapacitaciones',
-            'fechas', 'movimientosPorDepto', 'docPorMes'
+            'totalUnidades',
+            'totalOperadores',
+            'totalMantenimientos',
+            'totalCapacitaciones',
+            'fechas',
+            'movimientosPorDepto',
+            'docPorMes',
+            'ultimosMantenimientos',
+            'ultimasCapacitaciones',
+            'unidadesSinAsignar'
         ));
     }
 }

@@ -9,6 +9,7 @@ use App\Models\AsignacionOperadorUnidad;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Models\Zona;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class UnidadController extends Controller
@@ -95,9 +96,21 @@ class UnidadController extends Controller
 
     public function show($id)
     {
-        $unidad = Unidad::with(['zona', 'asignaciones.operador', 'movimientos.departamento'])->findOrFail($id);
+        $unidad = Unidad::with([
+            'zona',
+            'asignaciones.operador',
+            'movimientos'  // ← Agregar esta relación
+        ])->findOrFail($id);
+
         $operadorActual = $unidad->asignacionVigente->operador ?? null;
-        return view('admin.unidades.show', compact('unidad', 'operadorActual'));
+
+        // También puedes obtener los movimientos ordenados
+        $movimientos = $unidad->movimientos()
+            ->orderBy('created_at', 'desc')
+            ->limit(10)
+            ->get();
+
+        return view('admin.unidades.show', compact('unidad', 'operadorActual', 'movimientos'));
     }
 
     public function create()
@@ -109,40 +122,57 @@ class UnidadController extends Controller
 
     public function store(Request $request)
     {
-        $request->validate([
-            'numero_economico' => 'required|string|max:20|unique:unidades',
-            'nombre_unidad' => 'nullable|string|max:255',
-            'zona_id' => 'required|exists:zonas,id',          // ← nuevo
-            'activo' => 'sometimes|boolean',
-            'operador_id' => 'nullable|exists:operadores,id',
-        ]);
+        Log::info('=== INTENTO DE CREAR UNIDAD ===');
+        Log::info('Datos recibidos:', $request->all());
 
-        $unidad = Unidad::create([
-            'numero_economico' => $request->numero_economico,
-            'nombre_unidad' => $request->nombre_unidad,
-            'zona_id' => $request->zona_id,                    // ← nuevo
-            'codigo_qr' => (string) Str::uuid(),
-            'token_qr' => Str::random(20),
-            'activo' => $request->has('activo'),
-        ]);
-
-        // Asignar operador si se selecciona
-        if ($request->filled('operador_id')) {
-            // Finalizar asignaciones anteriores del operador
-            AsignacionOperadorUnidad::where('operador_id', $request->operador_id)
-                ->where('vigente', true)
-                ->update(['fecha_fin' => now(), 'vigente' => false]);
-
-            AsignacionOperadorUnidad::create([
-                'operador_id' => $request->operador_id,
-                'unidad_id' => $unidad->id,
-                'fecha_inicio' => now(),
-                'vigente' => true,
+        try {
+            // Cambiar la validación de 'activo'
+            $validated = $request->validate([
+                'numero_economico' => 'required|string|max:20|unique:unidades,numero_economico',
+                'nombre_unidad' => 'nullable|string|max:255',
+                'zona_id' => 'required|exists:zonas,id',
+                'activo' => 'sometimes|boolean', // ← Cambiar a 'sometimes|boolean'
+                'operador_id' => 'nullable|exists:operadores,id',
             ]);
-        }
 
-        return redirect()->route('admin.unidades.index')
-            ->with('success', 'Unidad creada correctamente.');
+            Log::info('✅ Validación pasada correctamente');
+
+            // Crear la unidad - el checkbox envía 'on' o null
+            $unidad = Unidad::create([
+                'numero_economico' => $validated['numero_economico'],
+                'nombre_unidad' => $validated['nombre_unidad'] ?? null,
+                'zona_id' => $validated['zona_id'],
+                'codigo_qr' => (string) \Illuminate\Support\Str::uuid(),
+                'token_qr' => \Illuminate\Support\Str::random(20),
+                'activo' => $request->has('activo'), // ← Esto convierte 'on' a true
+            ]);
+
+            Log::info('✅ Unidad creada con ID: ' . $unidad->id);
+
+            // Asignar operador si se selecciona
+            if ($request->filled('operador_id')) {
+                // Finalizar asignaciones anteriores del operador
+                AsignacionOperadorUnidad::where('operador_id', $request->operador_id)
+                    ->where('vigente', true)
+                    ->update(['fecha_fin' => now(), 'vigente' => false]);
+
+                AsignacionOperadorUnidad::create([
+                    'operador_id' => $request->operador_id,
+                    'unidad_id' => $unidad->id,
+                    'fecha_inicio' => now(),
+                    'vigente' => true,
+                ]);
+            }
+
+            return redirect()->route('admin.unidades.index')
+                ->with('success', 'Unidad creada correctamente.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('❌ Error de validación:', $e->errors());
+            return back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('❌ Error al crear unidad: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Error al crear la unidad: ' . $e->getMessage()])->withInput();
+        }
     }
 
     public function edit($id)
@@ -246,14 +276,55 @@ class UnidadController extends Controller
 
     public function destroy($id)
     {
-        $unidad = Unidad::findOrFail($id);
-        // Finalizar asignaciones vigentes
-        AsignacionOperadorUnidad::where('unidad_id', $id)->where('vigente', true)
-            ->update(['fecha_fin' => now(), 'vigente' => false]);
-        $unidad->delete();
+        try {
+            DB::beginTransaction();
 
-        return redirect()->route('admin.unidades.index')
-            ->with('success', 'Unidad eliminada correctamente.');
+            $unidad = Unidad::findOrFail($id);
+            Log::info('Intentando eliminar unidad ID: ' . $id . ' - ' . $unidad->numero_economico);
+
+            // Verificar si tiene asignaciones activas
+            $asignacionesActivas = AsignacionOperadorUnidad::where('unidad_id', $id)
+                ->where('vigente', true)
+                ->count();
+
+            if ($asignacionesActivas > 0) {
+                // Opción 1: Finalizar las asignaciones activas
+                AsignacionOperadorUnidad::where('unidad_id', $id)
+                    ->where('vigente', true)
+                    ->update([
+                        'fecha_fin' => now(),
+                        'vigente' => false
+                    ]);
+
+                Log::info('Asignaciones activas finalizadas: ' . $asignacionesActivas);
+            }
+
+            // Verificar si tiene asignaciones históricas
+            $asignacionesHistoricas = AsignacionOperadorUnidad::where('unidad_id', $id)->count();
+
+            if ($asignacionesHistoricas > 0) {
+                // Opción 2: Eliminar TODAS las asignaciones (históricas y activas)
+                // Esto permite eliminar la unidad limpia
+                AsignacionOperadorUnidad::where('unidad_id', $id)->delete();
+                Log::info('Asignaciones históricas eliminadas: ' . $asignacionesHistoricas);
+            }
+
+            // Ahora eliminar la unidad
+            $unidad->delete();
+
+            DB::commit();
+
+            Log::info('✅ Unidad eliminada exitosamente ID: ' . $id);
+
+            return redirect()->route('admin.unidades.index')
+                ->with('success', "Unidad {$unidad->numero_economico} eliminada exitosamente.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('❌ Error al eliminar unidad ID ' . $id . ': ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+
+            return back()->withErrors(['error' => 'Error al eliminar la unidad: ' . $e->getMessage()]);
+        }
     }
 
     // Método para regenerar el token QR (opcional)

@@ -3,40 +3,37 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DocumentoCapacitacion;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use App\Http\Requests\StoreDocumentoCapacitacionRequest;
+use App\Services\DocumentoService;
+use Illuminate\Http\JsonResponse;
+use Exception;
 
 class DocumentoCapacitacionController extends Controller
 {
-    public function store(Request $request)
+    protected DocumentoService $documentoService;
+
+    public function __construct(DocumentoService $documentoService)
     {
-        Log::info('API Capacitación - Datos recibidos:', $request->all());
+        $this->documentoService = $documentoService;
+    }
 
+    public function store(StoreDocumentoCapacitacionRequest $request): JsonResponse
+    {
         try {
-            $request->validate([
-                'asignacion_id' => 'required|exists:asignacion_operador_unidad,id',
-                'zona' => 'required|string',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'firma_operador' => 'required|string',
-                'firma_ing' => 'required|string',
-            ]);
+            $documento = $this->documentoService->crearDocumentoCapacitacion($request->validated());
 
-            $documento = DocumentoCapacitacion::create([
-                'asignacion_id' => $request->asignacion_id,
-                'zona' => $request->zona,
-                'fecha' => $request->fecha,
-                'hora' => $request->hora,
-                'vigente' => true,
-                'firma_operador' => $request->firma_operador,
-                'firma_ing' => $request->firma_ing,
-            ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento de capacitación creado exitosamente',
+                'data' => $documento->load(['operador', 'unidad', 'asignacion'])
+            ], 201);
 
-            return response()->json(['message' => 'Documento creado', 'id' => $documento->id], 201);
-        } catch (\Exception $e) {
-            Log::error('Error en API capacitación: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el documento de capacitación',
+                'error' => $e->getMessage()
+            ], 400);
         }
     }
 }

@@ -3,46 +3,39 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\DocumentoMantenimiento;
-use App\Models\AsignacionOperadorUnidad;
+use App\Http\Requests\StoreDocumentoMantenimientoRequest;
+use App\Services\DocumentoService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
+use Exception;
 
 class DocumentoMantenimientoController extends Controller
 {
-    public function store(Request $request)
+    protected DocumentoService $documentoService;
+
+    public function __construct(DocumentoService $documentoService)
     {
-        Log::info('API Mantenimiento - Datos recibidos:', $request->all());
+        $this->documentoService = $documentoService;
+    }
 
+    public function store(StoreDocumentoMantenimientoRequest $request): JsonResponse
+    {
         try {
-            $request->validate([
-                'asignacion_id' => 'required|exists:asignacion_operador_unidad,id',
-                'rol' => 'required|string',
-                'tecnologia' => 'required|array',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'firma_operador' => 'required',
-                'firma_ing' => 'required',
-                'firma_tabulacion' => 'required',
-            ]);
+            // Los datos ya vienen validados por el Form Request
+            $documento = $this->documentoService->crearDocumentoMantenimiento($request->validated());
 
-            $documento = DocumentoMantenimiento::create([
-                'asignacion_id' => $request->asignacion_id,
-                'rol' => $request->rol,
-                'tecnologia_reportada' => implode(',', $request->tecnologia),
-                'prueba_barras' => $request->prueba_barras,
-                'comentarios' => $request->comentarios,
-                'fecha' => $request->fecha,
-                'hora' => $request->hora,
-                'veces_adeudo' => $request->veces_adeudo ?? 0,
-                'observaciones_adeudo' => $request->observaciones_adeudo,
-                'vigente' => $request->vigente ?? true,
-            ]);
+            return response()->json([
+                'success' => true,
+                'message' => 'Documento de mantenimiento creado exitosamente',
+                'data' => $documento->load(['unidad', 'operador', 'asignacion'])
+            ], 201);
 
-            return response()->json(['message' => 'Documento creado', 'id' => $documento->id], 201);
-        } catch (\Exception $e) {
-            Log::error('Error en API mantenimiento: ' . $e->getMessage());
-            return response()->json(['error' => $e->getMessage()], 500);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al crear el documento de mantenimiento',
+                'error' => $e->getMessage()
+            ], 400);
         }
     }
 }

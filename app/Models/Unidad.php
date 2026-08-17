@@ -4,21 +4,58 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 
 class Unidad extends Model
 {
     use HasFactory;
 
-    protected $table = 'unidades';  // ← Agrega esta línea
+    protected $table = 'unidades';
 
-    protected $fillable = ['numero_economico', 'nombre_unidad', 'codigo_qr', 'token_qr', 'activo','zona_id' ];
+    protected $fillable = [
+        'numero_economico',
+        'nombre_unidad',
+        'zona_id',
+        'codigo_qr',
+        'token_qr',
+        'activo',
+    ];
 
+    protected $casts = [
+        'activo' => 'boolean',
+    ];
+
+    // Mutador para activo
+    public function setActivoAttribute($value)
+    {
+        $this->attributes['activo'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    // 🔥 RELACIÓN CON MOVIMIENTOS - AGREGAR ESTO
+    public function movimientos()
+    {
+        return $this->hasMany(MovimientoDepartamento::class, 'unidad_id');
+    }
+
+    // 🔥 RELACIÓN CON MOVIMIENTOS A TRAVÉS DE ASIGNACIONES (alternativa)
+    public function movimientosHistoricos()
+    {
+        return $this->hasManyThrough(
+            MovimientoDepartamento::class,
+            AsignacionOperadorUnidad::class,
+            'unidad_id',      // Foreign key en asignacion_operador_unidad
+            'asignacion_id',  // Foreign key en movimiento_departamento
+            'id',             // Local key en unidades
+            'id'              // Local key en asignacion_operador_unidad
+        );
+    }
+
+    // Relación con Zona
     public function zona()
     {
         return $this->belongsTo(Zona::class);
     }
 
+    // Relación con AsignacionOperadorUnidad
     public function asignaciones()
     {
         return $this->hasMany(AsignacionOperadorUnidad::class);
@@ -28,30 +65,44 @@ class Unidad extends Model
     {
         return $this->hasOne(AsignacionOperadorUnidad::class)
             ->where('vigente', true)
-            ->whereNull('fecha_fin');
+            ->with('operador');
     }
 
-    public function operadorActual()
+    // Relación con Documentos de Mantenimiento (a través de asignaciones)
+    public function documentosMantenimiento()
     {
-        return $this->asignacionVigente()->with('operador');
+        return $this->hasManyThrough(
+            DocumentoMantenimiento::class,
+            AsignacionOperadorUnidad::class,
+            'unidad_id',
+            'asignacion_id',
+            'id',
+            'id'
+        );
     }
 
-    public function movimientos()
+    // Relación con Documentos de Capacitación (a través de asignaciones)
+    public function documentosCapacitacion()
     {
-        return $this->hasMany(MovimientoDepartamento::class);
+        return $this->hasManyThrough(
+            DocumentoCapacitacion::class,
+            AsignacionOperadorUnidad::class,
+            'unidad_id',
+            'asignacion_id',
+            'id',
+            'id'
+        );
     }
 
-    protected static function boot()
+    // Método para obtener el operador actual
+    public function getOperadorActualAttribute()
     {
-        parent::boot();
+        return $this->asignacionVigente?->operador;
+    }
 
-        static::creating(function ($unidad) {
-            if (empty($unidad->codigo_qr)) {
-                $unidad->codigo_qr = Str::uuid();
-            }
-            if (empty($unidad->token_qr)) {
-                $unidad->token_qr = Str::random(20);
-            }
-        });
+    // Método para obtener el nombre de la zona
+    public function getNombreZonaAttribute()
+    {
+        return $this->zona?->nombre;
     }
 }

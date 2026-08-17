@@ -25,9 +25,9 @@
             <select name="zona_id" class="form-select @error('zona_id') is-invalid @enderror" required>
                 <option value="">Seleccione una zona</option>
                 @foreach($zonas as $zona)
-                    <option value="{{ $zona->id }}" {{ old('zona_id') == $zona->id ? 'selected' : '' }}>
-                        {{ ucfirst($zona->nombre) }}
-                    </option>
+                <option value="{{ $zona->id }}" {{ old('zona_id') == $zona->id ? 'selected' : '' }}>
+                    {{ ucfirst($zona->nombre) }}
+                </option>
                 @endforeach
             </select>
             @error('zona_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
@@ -43,8 +43,13 @@
         </div>
         <div class="col-md-6 mb-3">
             <div class="form-check mt-4">
-                <input type="checkbox" name="activo" class="form-check-input" checked>
-                <label class="form-check-label">Activo</label>
+                <input type="checkbox"
+                    name="activo"
+                    class="form-check-input"
+                    id="activo"
+                    value="1"
+                {{ old('activo', true) ? 'checked' : '' }}>
+                <label class="form-check-label" for="activo">Activo</label>
             </div>
         </div>
     </div>
