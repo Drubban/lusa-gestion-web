@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\MovimientoController;
 use App\Http\Controllers\Admin\UsuarioDepartamentoController;
 use App\Http\Controllers\Admin\QRController;
 use App\Http\Controllers\Admin\ImportacionController;
+use App\Http\Controllers\Admin\InventarioController;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -20,6 +21,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('documentos-capacitacion', DocumentoCapacitacionController::class);
     Route::resource('movimientos', MovimientoController::class);
     Route::resource('usuarios-app', UsuarioDepartamentoController::class);
+    Route::resource('inventario', InventarioController::class);
     
     Route::prefix('unidades')->name('unidades.')->group(function () {
         Route::get('regenerar-token/{unidad}', [UnidadController::class, 'regenerarToken'])->name('regenerar-token');

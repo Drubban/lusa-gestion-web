@@ -91,8 +91,8 @@
                                 href="{{ route('admin.importar.index') }}"><i class="fas fa-upload"></i> Importar
                                 datos</a></li>
                         <li class="nav-item">
-                            <a class="nav-link text-white" href="{{ route('admin.usuarios-app.index') }}">
-                                <i class="fas fa-mobile-alt"></i> Usuarios App
+                            <a class="nav-link text-white" href="{{ route('admin.inventario.index') }}">
+                                <i class="fas fa-boxes"></i> Inventario
                             </a>
                         </li>
                     </ul>
