@@ -95,6 +95,11 @@
                                 <i class="fas fa-boxes"></i> Inventario
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.ajustes.index')); ?>">
+                                <i class="fas fa-table"></i> Ajustes
+                            </a>
+                        </li>
                     </ul>
                 </div>
             </nav>
