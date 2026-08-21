@@ -1,21 +1,19 @@
-@extends('admin.layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="container-fluid px-4">
     <h1 class="mt-4">Importación masiva de datos</h1>
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-    @if(session('errores') && count(session('errores')) > 0)
+    <?php if(session('success')): ?>
+        <div class="alert alert-success"><?php echo e(session('success')); ?></div>
+    <?php endif; ?>
+    <?php if(session('error')): ?>
+        <div class="alert alert-danger"><?php echo e(session('error')); ?></div>
+    <?php endif; ?>
+    <?php if(session('errores') && count(session('errores')) > 0): ?>
         <div class="alert alert-warning">
             <strong>Errores encontrados:</strong>
-            <ul>@foreach(session('errores') as $error) <li>{{ $error }}</li> @endforeach</ul>
+            <ul><?php $__currentLoopData = session('errores'); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $error): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?> <li><?php echo e($error); ?></li> <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?></ul>
         </div>
-    @endif
+    <?php endif; ?>
 
     <div class="row">
         <!-- Unidades -->
@@ -23,8 +21,8 @@
             <div class="card shadow-sm border-0 rounded-4 mb-4">
                 <div class="card-header bg-white fw-bold">Importar Unidades (CSV)</div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.unidades') }}" enctype="multipart/form-data">
-                        @csrf
+                    <form method="POST" action="<?php echo e(route('admin.importar.unidades')); ?>" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
                         <div class="mb-3">
                             <label class="form-label">Archivo CSV</label>
                             <input type="file" name="archivo" class="form-control" accept=".csv" required>
@@ -45,8 +43,8 @@
             <div class="card shadow-sm border-0 rounded-4">
                 <div class="card-header bg-white fw-bold">Importar Operadores (CSV)</div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.operadores') }}" enctype="multipart/form-data">
-                        @csrf
+                    <form method="POST" action="<?php echo e(route('admin.importar.operadores')); ?>" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
                         <div class="mb-3">
                             <label class="form-label">Archivo CSV</label>
                             <input type="file" name="archivo" class="form-control" accept=".csv" required>
@@ -69,8 +67,8 @@
                     <i class="fas fa-microchip me-2"></i>Importar Tecnologías (CSV)
                 </div>
                 <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.tecnologias') }}" enctype="multipart/form-data">
-                        @csrf
+                    <form method="POST" action="<?php echo e(route('admin.importar.tecnologias')); ?>" enctype="multipart/form-data">
+                        <?php echo csrf_field(); ?>
                         <div class="mb-3">
                             <label class="form-label">Archivo CSV</label>
                             <input type="file" name="archivo" class="form-control" accept=".csv" required>
@@ -83,7 +81,7 @@
                                     <li><strong>GPS:</strong> imei_gps, telefono_gps, plan_gps</li>
                                     <li><strong>MDVR:</strong> dvr, modelo, camaras, memoria</li>
                                 </ul>
-                                <a href="{{ route('admin.importar.plantilla.tecnologias') }}" class="small" target="_blank">
+                                <a href="<?php echo e(route('admin.importar.plantilla.tecnologias')); ?>" class="small" target="_blank">
                                     <i class="fas fa-download me-1"></i>Descargar plantilla ejemplo
                                 </a>
                             </div>
@@ -174,4 +172,5 @@ document.getElementById('descargarPlantillaOperadores').addEventListener('click'
     URL.revokeObjectURL(url);
 });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('admin.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/importacion/index.blade.php ENDPATH**/ ?>

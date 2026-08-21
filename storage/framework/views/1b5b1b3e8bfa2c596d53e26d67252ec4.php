@@ -45,10 +45,25 @@
         border-color: #dee2e6;
     }
 
-    /* Botones anterior y siguiente más pequeños */
     .pagination .page-item:first-child .page-link,
     .pagination .page-item:last-child .page-link {
         padding: 8px 16px;
+    }
+
+    .nav .nav-link {
+        padding: 10px 15px;
+        border-radius: 5px;
+        transition: all 0.3s;
+    }
+    
+    .nav .nav-link:hover {
+        background-color: rgba(255,255,255,0.1);
+    }
+    
+    .nav .nav-link i {
+        margin-right: 10px;
+        width: 20px;
+        text-align: center;
     }
 </style>
 
@@ -63,41 +78,103 @@
 <body>
     <div class="container-fluid">
         <div class="row">
-            <nav class="col-md-2 d-none d-md-block bg-dark sidebar">
+            <nav class="col-md-2 d-none d-md-block bg-dark sidebar" style="min-height: 100vh;">
                 <div class="position-sticky pt-3">
                     <ul class="nav flex-column">
-                        <li class="nav-item"><a class="nav-link text-white" href="<?php echo e(route('admin.dashboard')); ?>"><i
-                                    class="fas fa-tachometer-alt"></i> Dashboard</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.unidades.index')); ?>"><i class="fas fa-bus"></i> Unidades</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.operadores.index')); ?>"><i class="fas fa-users"></i> Operadores</a>
+                        <!-- Dashboard -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.dashboard')); ?>">
+                                <i class="fas fa-tachometer-alt"></i> Dashboard
+                            </a>
                         </li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>"><i
-                                    class="fas fa-clipboard-list"></i> Mantenimiento</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.documentos-capacitacion.index')); ?>"><i
-                                    class="fas fa-graduation-cap"></i> Capacitación</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.movimientos.index')); ?>"><i class="fas fa-exchange-alt"></i>
-                                Entradas/Salidas</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.usuarios-app.index')); ?>"><i class="fas fa-mobile-alt"></i>
-                                Usuarios App</a></li>
-                        <li class="nav-item"><a class="nav-link text-white" href="<?php echo e(route('admin.qr.exportar')); ?>"><i
-                                    class="fas fa-qrcode"></i> Exportar QR</a></li>
-                        <li class="nav-item"><a class="nav-link text-white"
-                                href="<?php echo e(route('admin.importar.index')); ?>"><i class="fas fa-upload"></i> Importar
-                                datos</a></li>
+
+                        <!-- Unidades -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.unidades.index')); ?>">
+                                <i class="fas fa-bus"></i> Unidades
+                            </a>
+                        </li>
+
+                        <!-- Operadores -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.operadores.index')); ?>">
+                                <i class="fas fa-users"></i> Operadores
+                            </a>
+                        </li>
+
+                        <!-- Documentos -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>">
+                                <i class="fas fa-clipboard-list"></i> Mantenimiento
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.documentos-capacitacion.index')); ?>">
+                                <i class="fas fa-graduation-cap"></i> Capacitación
+                            </a>
+                        </li>
+
+                        <!-- Movimientos -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.movimientos.index')); ?>">
+                                <i class="fas fa-exchange-alt"></i> Entradas/Salidas
+                            </a>
+                        </li>
+
+                        <!-- Usuarios App -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.usuarios-app.index')); ?>">
+                                <i class="fas fa-mobile-alt"></i> Usuarios App
+                            </a>
+                        </li>
+
+                        <!-- QR -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.qr.exportar')); ?>">
+                                <i class="fas fa-qrcode"></i> Exportar QR
+                            </a>
+                        </li>
+
+                        <!-- Importar -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.importar.index')); ?>">
+                                <i class="fas fa-upload"></i> Importar datos
+                            </a>
+                        </li>
+
+                        <!-- Inventario -->
                         <li class="nav-item">
                             <a class="nav-link text-white" href="<?php echo e(route('admin.inventario.index')); ?>">
                                 <i class="fas fa-boxes"></i> Inventario
                             </a>
                         </li>
+
+                        <!-- Ajustes -->
                         <li class="nav-item">
                             <a class="nav-link text-white" href="<?php echo e(route('admin.ajustes.index')); ?>">
                                 <i class="fas fa-table"></i> Ajustes
+                            </a>
+                        </li>
+
+                        <!-- 🔥 TECNOLOGÍAS - ENLACES INDIVIDUALES -->
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.tecnologias.index', ['tipo' => 'barras'])); ?>">
+                                <i class="fas fa-barcode"></i> Tecnología Barras
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.tecnologias.index', ['tipo' => 'telpo'])); ?>">
+                                <i class="fas fa-mobile-alt"></i> Tecnología Telpo
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.tecnologias.index', ['tipo' => 'gps'])); ?>">
+                                <i class="fas fa-satellite"></i> Tecnología GPS
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="<?php echo e(route('admin.tecnologias.index', ['tipo' => 'mdvr'])); ?>">
+                                <i class="fas fa-video"></i> Tecnología MDVR
                             </a>
                         </li>
                     </ul>
@@ -108,12 +185,11 @@
             </main>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 </body>
 
-</html>
-<!-- Chart.js CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<!-- Opcional: para fechas bonitas -->
-<script
-    src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/layouts/app.blade.php ENDPATH**/ ?>
+</html><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/layouts/app.blade.php ENDPATH**/ ?>

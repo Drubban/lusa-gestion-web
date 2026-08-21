@@ -199,6 +199,10 @@ class UnidadController extends Controller
             'zona_id' => 'required|exists:zonas,id',
             'activo' => 'sometimes|boolean',
             'operador_id' => 'nullable|exists:operadores,id',
+            // 🔥 NUEVOS CAMPOS
+            'equipo_telpo' => 'nullable|string|max:100',
+            'equipo_gps' => 'nullable|string|max:100',
+            'equipo_barras' => 'nullable|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -209,7 +213,6 @@ class UnidadController extends Controller
         Log::info('Validación pasada correctamente');
 
         try {
-            // Convertir activo a booleano
             $activo = $request->has('activo');
 
             $unidad->update([
@@ -217,6 +220,10 @@ class UnidadController extends Controller
                 'nombre_unidad' => $request->nombre_unidad,
                 'zona_id' => $request->zona_id,
                 'activo' => $activo,
+                // 🔥 NUEVOS CAMPOS
+                'equipo_telpo' => $request->equipo_telpo,
+                'equipo_gps' => $request->equipo_gps,
+                'equipo_barras' => $request->equipo_barras,
             ]);
 
             Log::info('Unidad actualizada en BD');
@@ -269,7 +276,6 @@ class UnidadController extends Controller
                 ->with('success', 'Unidad actualizada correctamente.');
         } catch (\Exception $e) {
             Log::error('ERROR en update: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
             return back()->withErrors('Error interno: ' . $e->getMessage())->withInput();
         }
     }

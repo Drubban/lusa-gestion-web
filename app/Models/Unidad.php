@@ -14,6 +14,9 @@ class Unidad extends Model
     protected $fillable = [
         'numero_economico',
         'nombre_unidad',
+        'equipo_telpo',
+        'equipo_gps',
+        'equipo_barras',
         'zona_id',
         'codigo_qr',
         'token_qr',
@@ -47,6 +50,21 @@ class Unidad extends Model
             'id',             // Local key en unidades
             'id'              // Local key en asignacion_operador_unidad
         );
+    }
+
+    public function getEquipoTelpoAttribute($value)
+    {
+        return $value ?? 'Sin asignar';
+    }
+
+    public function getEquipoGpsAttribute($value)
+    {
+        return $value ?? 'Sin asignar';
+    }
+
+    public function getEquipoBarrasAttribute($value)
+    {
+        return $value ?? 'Sin asignar';
     }
 
     // Relación con Zona
@@ -104,5 +122,10 @@ class Unidad extends Model
     public function getNombreZonaAttribute()
     {
         return $this->zona?->nombre;
+    }
+
+    public function tecnologias()
+    {
+        return $this->hasMany(Tecnologia::class);
     }
 }

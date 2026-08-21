@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\UsuarioDepartamentoController;
 use App\Http\Controllers\Admin\QRController;
 use App\Http\Controllers\Admin\ImportacionController;
 use App\Http\Controllers\Admin\InventarioController;
+use App\Http\Controllers\Admin\TecnologiaController;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -24,6 +25,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('usuarios-app', UsuarioDepartamentoController::class);
     Route::resource('inventario', InventarioController::class);
     Route::resource('ajustes', AjusteController::class);
+    Route::resource('tecnologias', TecnologiaController::class);
 
     Route::get('ajustes/operadores', [AjusteController::class, 'getOperadores'])->name('ajustes.operadores');
     Route::get('ajustes/unidades', [AjusteController::class, 'getUnidades'])->name('ajustes.unidades');
@@ -54,6 +56,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [ImportacionController::class, 'index'])->name('index');
         Route::post('unidades', [ImportacionController::class, 'importarUnidades'])->name('unidades');
         Route::post('operadores', [ImportacionController::class, 'importarOperadores'])->name('operadores');
+        Route::post('tecnologias', [ImportacionController::class, 'importarTecnologias'])->name('tecnologias');
+        Route::get('plantilla-tecnologias', [ImportacionController::class, 'descargarPlantillaTecnologias'])->name('plantilla.tecnologias');
     });
 });
 

@@ -7,7 +7,13 @@ use App\Models\AsignacionOperadorUnidad;
 use App\Models\Operador;
 use App\Models\Unidad;
 use App\Models\Zona;
+use App\Models\Barra;
+use App\Models\Telpo;
+use App\Models\Gps;
+use App\Models\Mdvr;
+use App\Models\Tecnologia;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -353,6 +359,423 @@ class ImportacionController extends Controller
         return back()->with('success', $mensaje);
     }
 
+    public function importarTecnologias(Request $request)
+    {
+        $request->validate([
+            'archivo' => 'required|file|mimes:csv,txt|max:5120',
+        ]);
+
+        $file = $request->file('archivo');
+        $handle = fopen($file->getPathname(), 'r');
+
+        // Leer cabeceras
+        $headers = fgetcsv($handle, 0, ',');
+        if (!$headers) {
+            fclose($handle);
+            return back()->withErrors(['error' => 'El archivo CSV está vacío o no tiene cabeceras.']);
+        }
+
+        // Limpiar cabeceras
+        $headersLower = array_map(function ($h) {
+            return strtolower(trim($h));
+        }, $headers);
+
+        Log::info('📋 Cabeceras detectadas:', $headersLower);
+
+        // Validar columnas mínimas
+        $minimos = ['numero_economico', 'tipo'];
+        $faltan = array_diff($minimos, $headersLower);
+        if (!empty($faltan)) {
+            fclose($handle);
+            return back()->withErrors([
+                'error' => 'El archivo debe contener las columnas: ' . implode(', ', $faltan)
+            ]);
+        }
+
+        $importados = 0;
+        $errores = [];
+        $filaNumero = 1;
+        $userId = 1; // Usuario Drubban
+
+        DB::beginTransaction();
+
+        try {
+            while (($row = fgetcsv($handle, 0, ',')) !== false) {
+                $filaNumero++;
+
+                // Saltar filas vacías
+                if (empty(array_filter($row))) {
+                    continue;
+                }
+
+                // Asegurar que la fila tenga suficientes columnas
+                $data = [];
+                foreach ($headersLower as $index => $key) {
+                    $data[$key] = isset($row[$index]) ? trim($row[$index]) : '';
+                }
+
+                // Limpiar datos
+                $numeroEconomico = $data['numero_economico'] ?? '';
+                $tipo = strtolower($data['tipo'] ?? '');
+
+                Log::info("📌 Procesando fila {$filaNumero}: Unidad={$numeroEconomico}, Tipo={$tipo}");
+
+                // Validar número económico
+                if (empty($numeroEconomico)) {
+                    $errores[] = "Fila {$filaNumero}: Número económico vacío";
+                    continue;
+                }
+
+                // Buscar unidad
+                $unidad = Unidad::where('numero_economico', $numeroEconomico)->first();
+                if (!$unidad) {
+                    $errores[] = "Fila {$filaNumero}: Unidad '{$numeroEconomico}' no encontrada";
+                    continue;
+                }
+
+                // Validar tipo
+                $tiposValidos = ['barras', 'telpo', 'gps', 'mdvr'];
+                if (!in_array($tipo, $tiposValidos)) {
+                    $errores[] = "Fila {$filaNumero}: Tipo '{$tipo}' no válido. Debe ser: " . implode(', ', $tiposValidos);
+                    continue;
+                }
+
+                // Verificar duplicado
+                $existe = Tecnologia::where('unidad_id', $unidad->id)
+                    ->where('tipo', $tipo)
+                    ->exists();
+
+                if ($existe) {
+                    $errores[] = "Fila {$filaNumero}: La unidad '{$numeroEconomico}' ya tiene tecnología tipo '{$tipo}'";
+                    continue;
+                }
+
+                // 🔥 CREAR TECNOLOGÍA
+                $tecnologia = Tecnologia::create([
+                    'unidad_id' => $unidad->id,
+                    'tipo' => $tipo,
+                    'nombre' => !empty($data['nombre']) ? $data['nombre'] : null,
+                    'activo' => isset($data['activo']) ? filter_var($data['activo'], FILTER_VALIDATE_BOOLEAN) : true,
+                    'created_by' => $userId,
+                ]);
+
+                Log::info("✅ Tecnología creada ID: {$tecnologia->id} - Tipo: {$tipo}");
+
+                // 🔥 CREAR DATOS ESPECÍFICOS SEGÚN TIPO
+                $this->crearDatosEspecificos($tecnologia, $data, $tipo, $filaNumero, $errores);
+
+                $importados++;
+            }
+
+            DB::commit();
+            fclose($handle);
+
+            $mensaje = "✅ Se importaron {$importados} tecnologías correctamente.";
+            if (!empty($errores)) {
+                $mensaje .= " ⚠️ Con " . count($errores) . " errores.";
+                return back()->with('success', $mensaje)->with('errores', $errores);
+            }
+
+            return redirect()->route('admin.importar.index')->with('success', $mensaje);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            fclose($handle);
+            Log::error('❌ Error al importar tecnologías: ' . $e->getMessage());
+            Log::error($e->getTraceAsString());
+            return back()->withErrors([
+                'error' => 'Error al importar: ' . $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * 🔥 CREAR DATOS ESPECÍFICOS - VERSIÓN MEJORADA
+     */
+    private function crearDatosEspecificos($tecnologia, $data, $tipo, $filaNumero, &$errores)
+    {
+        try {
+            switch ($tipo) {
+                case 'barras':
+                    $barraData = ['tecnologia_id' => $tecnologia->id];
+                    $tieneDatos = false;
+
+                    if (!empty($data['id_barra'])) {
+                        $barraData['id_barra'] = $data['id_barra'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['barras'])) {
+                        $barraData['barras'] = $data['barras'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['telefono_barras'])) {
+                        $barraData['telefono'] = $data['telefono_barras'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['plan_barras'])) {
+                        $barraData['plan'] = $data['plan_barras'];
+                        $tieneDatos = true;
+                    }
+
+                    if ($tieneDatos) {
+                        Barra::create($barraData);
+                        Log::info("✅ Datos de Barras creados para tecnología ID: {$tecnologia->id}");
+                    } else {
+                        Log::info("⚠️ Sin datos de Barras para tecnología ID: {$tecnologia->id}");
+                    }
+                    break;
+
+                case 'telpo':
+                    $telpoData = ['tecnologia_id' => $tecnologia->id];
+                    $tieneDatos = false;
+
+                    if (!empty($data['imei_antes'])) {
+                        $telpoData['imei_antes'] = $data['imei_antes'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['v_apk'])) {
+                        $telpoData['v_apk'] = $data['v_apk'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['telpo'])) {
+                        $telpoData['telpo'] = $data['telpo'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['imei_telpo'])) {
+                        $telpoData['imei_telpo'] = $data['imei_telpo'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['telefono_telpo'])) {
+                        $telpoData['telefono'] = $data['telefono_telpo'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['plan_telpo'])) {
+                        $telpoData['plan'] = $data['plan_telpo'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['costo_plan'])) {
+                        $telpoData['costo_plan'] = floatval($data['costo_plan']);
+                        $tieneDatos = true;
+                    }
+
+                    if ($tieneDatos) {
+                        Telpo::create($telpoData);
+                        Log::info("✅ Datos de Telpo creados para tecnología ID: {$tecnologia->id}");
+                    } else {
+                        Log::info("⚠️ Sin datos de Telpo para tecnología ID: {$tecnologia->id}");
+                    }
+                    break;
+
+                case 'gps':
+                    $gpsData = ['tecnologia_id' => $tecnologia->id];
+                    $tieneDatos = false;
+
+                    // 🔥 Manejar IMEI en formato científico
+                    if (!empty($data['imei_gps'])) {
+                        $imei = $data['imei_gps'];
+                        // Si es formato científico (ej: 8.64893E+14), convertirlo
+                        if (is_numeric($imei) && strpos($imei, 'E') !== false) {
+                            $imei = number_format(floatval($imei), 0, '.', '');
+                        }
+                        $gpsData['imei_gps'] = $imei;
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['telefono_gps'])) {
+                        $gpsData['telefono'] = $data['telefono_gps'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['plan_gps'])) {
+                        $gpsData['plan'] = $data['plan_gps'];
+                        $tieneDatos = true;
+                    }
+
+                    if ($tieneDatos) {
+                        Gps::create($gpsData);
+                        Log::info("✅ Datos de GPS creados para tecnología ID: {$tecnologia->id}");
+                    } else {
+                        Log::info("⚠️ Sin datos de GPS para tecnología ID: {$tecnologia->id}");
+                    }
+                    break;
+
+                case 'mdvr':
+                    $mdvrData = ['tecnologia_id' => $tecnologia->id];
+                    $tieneDatos = false;
+
+                    if (!empty($data['dvr'])) {
+                        $mdvrData['dvr'] = $data['dvr'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['modelo'])) {
+                        $mdvrData['modelo'] = $data['modelo'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['camaras'])) {
+                        $mdvrData['camaras'] = $data['camaras'];
+                        $tieneDatos = true;
+                    }
+                    if (!empty($data['memoria'])) {
+                        $mdvrData['memoria'] = $data['memoria'];
+                        $tieneDatos = true;
+                    }
+
+                    if ($tieneDatos) {
+                        Mdvr::create($mdvrData);
+                        Log::info("✅ Datos de MDVR creados para tecnología ID: {$tecnologia->id}");
+                    } else {
+                        Log::info("⚠️ Sin datos de MDVR para tecnología ID: {$tecnologia->id}");
+                    }
+                    break;
+            }
+        } catch (\Exception $e) {
+            $errores[] = "Fila {$filaNumero}: Error al guardar datos específicos - " . $e->getMessage();
+            Log::error("❌ Error en fila {$filaNumero}: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Descargar plantilla de tecnologías
+     */
+    public function descargarPlantillaTecnologias()
+    {
+        $headers = [
+            'numero_economico',
+            'tipo',
+            'nombre',
+            'activo',
+            'id_barra',
+            'barras',
+            'telefono_barras',
+            'plan_barras',
+            'imei_antes',
+            'v_apk',
+            'telpo',
+            'imei_telpo',
+            'telefono_telpo',
+            'plan_telpo',
+            'costo_plan',
+            'imei_gps',
+            'telefono_gps',
+            'plan_gps',
+            'dvr',
+            'modelo',
+            'camaras',
+            'memoria',
+        ];
+
+        $ejemplos = [
+            [
+                'ECO-001',
+                'barras',
+                'Barras Ejemplo',
+                '1',
+                'BAR-001',
+                'OptoControl',
+                '525591958672',
+                'Plan Empresarial',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            ],
+            [
+                'ECO-002',
+                'telpo',
+                'Telpo Ejemplo',
+                '1',
+                '',
+                '',
+                '',
+                '',
+                '123456789012345',
+                '4.9.2',
+                'T20',
+                '987654321098765',
+                '5512345678',
+                'Plan Premium',
+                '749',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                ''
+            ],
+            [
+                'ECO-003',
+                'gps',
+                'GPS Ejemplo',
+                '1',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '123456789012346',
+                '5512345679',
+                'Plan Básico',
+                '',
+                '',
+                '',
+                ''
+            ],
+            [
+                'ECO-004',
+                'mdvr',
+                'MDVR Ejemplo',
+                '1',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                '',
+                'DVR-001',
+                'Modelo X',
+                '4',
+                '256GB'
+            ],
+        ];
+
+        $handle = fopen('php://memory', 'w');
+        fputcsv($handle, $headers);
+        foreach ($ejemplos as $ejemplo) {
+            fputcsv($handle, $ejemplo);
+        }
+        fseek($handle, 0);
+        $content = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($content, 200, [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="plantilla_tecnologias.csv"',
+        ]);
+    }
+
     /**
      * Detecta el separador de una línea CSV
      */
@@ -360,11 +783,9 @@ class ImportacionController extends Controller
     {
         $separadores = [',', ';', "\t"];
         $cuentas = [];
-
         foreach ($separadores as $sep) {
             $cuentas[$sep] = substr_count($linea, $sep);
         }
-
         arsort($cuentas);
         return key($cuentas);
     }
