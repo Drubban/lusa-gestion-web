@@ -25,6 +25,9 @@ class Unidad extends Model
 
     protected $casts = [
         'activo' => 'boolean',
+        'equipo_telpo' => 'boolean',
+        'equipo_gps' => 'boolean',
+        'equipo_barras' => 'boolean',
     ];
 
     // Mutador para activo

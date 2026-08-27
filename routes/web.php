@@ -12,11 +12,13 @@ use App\Http\Controllers\Admin\UsuarioDepartamentoController;
 use App\Http\Controllers\Admin\QRController;
 use App\Http\Controllers\Admin\ImportacionController;
 use App\Http\Controllers\Admin\InventarioController;
+use App\Http\Controllers\Admin\MantenimientoDashboardController;
 use App\Http\Controllers\Admin\TecnologiaController;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
+    // Recursos principales
     Route::resource('unidades', UnidadController::class);
     Route::resource('operadores', OperadorController::class);
     Route::resource('documentos-mantenimiento', DocumentoMantenimientoController::class);
@@ -27,11 +29,26 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('ajustes', AjusteController::class);
     Route::resource('tecnologias', TecnologiaController::class);
 
+    // Rutas para obtener datos via AJAX (ajustes)
     Route::get('ajustes/operadores', [AjusteController::class, 'getOperadores'])->name('ajustes.operadores');
     Route::get('ajustes/unidades', [AjusteController::class, 'getUnidades'])->name('ajustes.unidades');
 
+    // Rutas específicas de unidades
     Route::prefix('unidades')->name('unidades.')->group(function () {
         Route::get('regenerar-token/{unidad}', [UnidadController::class, 'regenerarToken'])->name('regenerar-token');
+    });
+
+    // Obtener operador actual de una unidad (AJAX)
+    Route::get('unidades/{id}/operador-actual', function ($id) {
+        $unidad = \App\Models\Unidad::with('asignacionVigente.operador')->findOrFail($id);
+        $operador = $unidad->asignacionVigente->operador ?? null;
+        return response()->json(['operador' => $operador]);
+    })->name('unidades.operador-actual');
+
+    // 🔥 RUTAS DEL TABLERO DE MANTENIMIENTO (FUERA DEL GRUPO documentos-mantenimiento)
+    Route::prefix('mantenimiento')->name('mantenimiento.')->group(function () {
+        Route::get('/', [MantenimientoDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/unidad/{id}', [MantenimientoDashboardController::class, 'show'])->name('detalle');
     });
 
     // Rutas para QR
@@ -41,12 +58,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('descargar-pdf', [QRController::class, 'descargarTodos'])->name('descargar-pdf');
     });
 
-    // Rutas de exportación para documentos
+    // Rutas de exportación para documentos de mantenimiento (sin crear conflicto)
     Route::prefix('documentos-mantenimiento')->name('documentos-mantenimiento.')->group(function () {
         Route::get('{id}/pdf', [DocumentoMantenimientoController::class, 'exportarPdf'])->name('exportar-pdf');
         Route::get('{id}/word', [DocumentoMantenimientoController::class, 'exportarWord'])->name('exportar-word');
     });
 
+    // Rutas de exportación para documentos de capacitación
     Route::prefix('documentos-capacitacion')->name('documentos-capacitacion.')->group(function () {
         Route::get('{id}/pdf', [DocumentoCapacitacionController::class, 'exportarPdf'])->name('exportar-pdf');
     });

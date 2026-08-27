@@ -55,11 +55,11 @@
         border-radius: 5px;
         transition: all 0.3s;
     }
-    
+
     .nav .nav-link:hover {
-        background-color: rgba(255,255,255,0.1);
+        background-color: rgba(255, 255, 255, 0.1);
     }
-    
+
     .nav .nav-link i {
         margin-right: 10px;
         width: 20px;
@@ -106,6 +106,11 @@
                         <li class="nav-item">
                             <a class="nav-link text-white" href="{{ route('admin.documentos-mantenimiento.index') }}">
                                 <i class="fas fa-clipboard-list"></i> Mantenimiento
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="{{ route('admin.mantenimiento.dashboard') }}">
+                                <i class="fas fa-calendar-check"></i> Tablero de Mantenimiento
                             </a>
                         </li>
                         <li class="nav-item">

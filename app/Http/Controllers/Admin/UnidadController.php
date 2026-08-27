@@ -20,7 +20,7 @@ class UnidadController extends Controller
 
         // Obtener parámetros de filtro y orden
         $search = $request->input('search', '');
-        // $estado = $request->input('estado', '');
+        $estado = $request->input('estado', ''); // ← DESCOMENTAR
         $zona = $request->input('zona', '');
         $sort = $request->input('sort', 'numero_economico');
         $direction = $request->input('direction', 'asc');
@@ -28,7 +28,7 @@ class UnidadController extends Controller
         // Construir la consulta base
         $query = Unidad::with(['zona', 'asignacionVigente.operador']);
 
-        // Aplicar filtro de búsqueda (número económico, nombre, operador)
+        // Aplicar filtro de búsqueda
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
                 $q->where('numero_economico', 'LIKE', "%{$search}%")
@@ -39,10 +39,10 @@ class UnidadController extends Controller
             });
         }
 
-        // Aplicar filtro por estado
-        // if ($estado !== '') {
-        //     $query->where('activo', $estado == 'activo' ? 1 : 0);
-        // }
+        // 🔥 FILTRO POR ESTADO - DESCOMENTAR Y CORREGIR
+        if ($estado !== '') {
+            $query->where('activo', $estado == 'activo' ? 1 : 0);
+        }
 
         // Aplicar filtro por zona
         if (!empty($zona)) {
@@ -83,7 +83,7 @@ class UnidadController extends Controller
         // Mantener los parámetros en la paginación
         $unidades->appends([
             'search' => $search,
-            // 'estado' => $estado,
+            'estado' => $estado, // ← DESCOMENTAR
             'zona' => $zona,
             'sort' => $sort,
             'direction' => $direction
@@ -91,7 +91,7 @@ class UnidadController extends Controller
 
         $zonas = \App\Models\Zona::all();
 
-        return view('admin.unidades.index', compact('unidades', 'search', 'zona', 'sort', 'direction', 'zonas'));
+        return view('admin.unidades.index', compact('unidades', 'search', 'estado', 'zona', 'sort', 'direction', 'zonas'));
     }
 
     public function show($id)
@@ -199,18 +199,17 @@ class UnidadController extends Controller
             'zona_id' => 'required|exists:zonas,id',
             'activo' => 'sometimes|boolean',
             'operador_id' => 'nullable|exists:operadores,id',
-            // 🔥 NUEVOS CAMPOS
-            'equipo_telpo' => 'nullable|string|max:100',
-            'equipo_gps' => 'nullable|string|max:100',
-            'equipo_barras' => 'nullable|string|max:100',
+            'equipo_telpo' => 'nullable|boolean',
+            'equipo_gps' => 'nullable|boolean',
+            'equipo_barras' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
-            Log::error('Validación fallida: ' . json_encode($validator->errors()->all()));
+            Log::error('Validacion fallida: ' . json_encode($validator->errors()->all()));
             return back()->withErrors($validator)->withInput();
         }
 
-        Log::info('Validación pasada correctamente');
+        Log::info('Validacion pasada correctamente');
 
         try {
             $activo = $request->has('activo');
@@ -220,15 +219,15 @@ class UnidadController extends Controller
                 'nombre_unidad' => $request->nombre_unidad,
                 'zona_id' => $request->zona_id,
                 'activo' => $activo,
-                // 🔥 NUEVOS CAMPOS
-                'equipo_telpo' => $request->equipo_telpo,
-                'equipo_gps' => $request->equipo_gps,
-                'equipo_barras' => $request->equipo_barras,
+                // Los checkboxes envian '1' o '0'
+                'equipo_telpo' => $request->has('equipo_telpo') ? true : false,
+                'equipo_gps' => $request->has('equipo_gps') ? true : false,
+                'equipo_barras' => $request->has('equipo_barras') ? true : false,
             ]);
 
             Log::info('Unidad actualizada en BD');
 
-            // Manejo de asignación de operador
+            // Manejo de asignacion de operador
             if ($request->filled('operador_id')) {
                 Log::info('Asignando operador ID: ' . $request->operador_id);
 
@@ -236,7 +235,7 @@ class UnidadController extends Controller
 
                 if ($asignacionVigente && $asignacionVigente->operador_id != $request->operador_id) {
                     $asignacionVigente->update(['fecha_fin' => now(), 'vigente' => false]);
-                    Log::info('Asignación anterior finalizada');
+                    Log::info('Asignacion anterior finalizada');
 
                     AsignacionOperadorUnidad::where('operador_id', $request->operador_id)
                         ->where('vigente', true)
@@ -248,7 +247,7 @@ class UnidadController extends Controller
                         'fecha_inicio' => now(),
                         'vigente' => true,
                     ]);
-                    Log::info('Nueva asignación creada');
+                    Log::info('Nueva asignacion creada');
                 } elseif (!$asignacionVigente) {
                     AsignacionOperadorUnidad::where('operador_id', $request->operador_id)
                         ->where('vigente', true)
@@ -260,17 +259,17 @@ class UnidadController extends Controller
                         'fecha_inicio' => now(),
                         'vigente' => true,
                     ]);
-                    Log::info('Asignación creada por primera vez');
+                    Log::info('Asignacion creada por primera vez');
                 }
             } else {
                 $asignacionVigente = $unidad->asignacionVigente;
                 if ($asignacionVigente) {
                     $asignacionVigente->update(['fecha_fin' => now(), 'vigente' => false]);
-                    Log::info('Asignación vigente finalizada por falta de operador');
+                    Log::info('Asignacion vigente finalizada por falta de operador');
                 }
             }
 
-            Log::info('=== UNIDAD ACTUALIZADA CON ÉXITO ===');
+            Log::info('=== UNIDAD ACTUALIZADA CON EXITO ===');
 
             return redirect()->route('admin.unidades.index')
                 ->with('success', 'Unidad actualizada correctamente.');

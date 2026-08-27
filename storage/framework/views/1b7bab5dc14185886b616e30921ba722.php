@@ -1,12 +1,15 @@
 <?php $__env->startSection('content'); ?>
 <div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Detalle de Conformidad de Capacitación</h1>
+        <h1 class="h3">Detalle de Documento de Mantenimiento</h1>
         <div>
-            <a href="<?php echo e(route('admin.documentos-capacitacion.exportar-pdf', $documento)); ?>" class="btn btn-primary rounded-pill px-4">
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-pdf', $documento)); ?>" class="btn btn-primary rounded-pill px-4">
                 <i class="fas fa-file-pdf"></i> Exportar PDF
             </a>
-            <a href="<?php echo e(route('admin.documentos-capacitacion.index')); ?>" class="btn btn-secondary rounded-pill px-4">Volver</a>
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-word', $documento)); ?>" class="btn btn-secondary rounded-pill px-4">
+                <i class="fas fa-file-word"></i> Exportar Word
+            </a>
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>" class="btn btn-secondary rounded-pill px-4">Volver</a>
         </div>
     </div>
 
@@ -21,16 +24,28 @@
                             <p><?php echo e($documento->asignacion->unidad->numero_economico); ?> - <?php echo e($documento->asignacion->unidad->nombre_unidad ?? 'Sin nombre'); ?></p>
                         </div>
                         <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Zona:</strong></div>
-                            <p><?php echo e($documento->asignacion->unidad->zona->nombre ?? 'N/A'); ?></p>
+                            <div class="border-bottom pb-1 mb-2"><strong>Zona (Rol):</strong></div>
+                            <p><?php echo e($documento->rol ?? 'N/A'); ?></p>
                         </div>
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Operador:</strong></div>
                             <p><?php echo e($documento->asignacion->operador->nombre_completo); ?></p>
                         </div>
                         <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Clave de operador:</strong></div>
+                            <div class="border-bottom pb-1 mb-2"><strong>Clave operador:</strong></div>
                             <p><?php echo e($documento->asignacion->operador->clave_operador); ?></p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-1 mb-2"><strong>Tecnología reportada:</strong></div>
+                            <p><?php echo e($documento->tecnologia_reportada); ?></p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-1 mb-2"><strong>Prueba barras Optocontrol:</strong></div>
+                            <p><?php echo e($documento->prueba_barras ?? 'No aplica'); ?></p>
+                        </div>
+                        <div class="col-12">
+                            <div class="border-bottom pb-1 mb-2"><strong>Comentarios:</strong></div>
+                            <p><?php echo e($documento->comentarios ?? 'Ninguno'); ?></p>
                         </div>
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Fecha:</strong></div>
@@ -39,6 +54,14 @@
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Hora:</strong></div>
                             <p><?php echo e($documento->hora); ?></p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-1 mb-2"><strong>Número de adeudos:</strong></div>
+                            <p><?php echo e($documento->veces_adeudo); ?></p>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border-bottom pb-1 mb-2"><strong>Observaciones adeudo:</strong></div>
+                            <p><?php echo e($documento->observaciones_adeudo ?? 'Ninguna'); ?></p>
                         </div>
                         <div class="col-12">
                             <div class="border-bottom pb-1 mb-2"><strong>Vigente:</strong></div>
@@ -70,18 +93,27 @@
                         </div>
                     </div>
                     <?php endif; ?>
+
+                    <?php if($documento->firma_tabulacion): ?>
+                    <div class="mb-4">
+                        <strong>Firma de tabulación:</strong>
+                        <div class="border rounded p-2 mt-2 text-center bg-light">
+                            <img src="data:image/png;base64,<?php echo e($documento->firma_tabulacion); ?>" style="max-width: 100%; max-height: 120px;" alt="Firma tabulación">
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Si quieres mostrar el contenido de la plantilla (por ejemplo, para vista previa) -->
+    <!-- Vista previa del formato (opcional) -->
     <div class="card shadow-sm border-0 rounded-4 mt-2">
         <div class="card-header bg-white fw-semibold">Vista previa del documento</div>
         <div class="card-body p-4 bg-light" style="font-size: 14px;">
-            <?php echo $__env->make('admin.documentos.plantilla_capacitacion', ['documento' => $documento], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            <?php echo $__env->make('admin.documentos.plantilla_mantenimiento', ['documento' => $documento], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
         </div>
     </div>
 </div>
 <?php $__env->stopSection(); ?>
-<?php echo $__env->make('admin.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/documentos/capacitacion/show.blade.php ENDPATH**/ ?>
+<?php echo $__env->make('admin.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/documentos/mantenimiento/show.blade.php ENDPATH**/ ?>

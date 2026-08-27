@@ -43,6 +43,8 @@ class DepartamentoLusaSeeder extends Seeder
             ['nombre' => 'Tabulacion Zapata'],
             ['nombre' => 'Tabulacion Zona Cero'],
             ['nombre' => 'Tabulacion IV'],
+
+            ['nombre' => 'AIFA']
         ];
 
         // Ordenar alfabéticamente para mejor visualización

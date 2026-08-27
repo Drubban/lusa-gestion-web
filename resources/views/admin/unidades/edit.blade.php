@@ -16,9 +16,9 @@
                 @method('PUT')
 
                 <div class="row g-4">
-                    <!-- Número Económico -->
+                    <!-- Numero Economico -->
                     <div class="col-md-6">
-                        <label class="form-label fw-semibold">Número Económico *</label>
+                        <label class="form-label fw-semibold">Numero Economico *</label>
                         <input type="text" name="numero_economico" 
                                class="form-control @error('numero_economico') is-invalid @enderror" 
                                value="{{ old('numero_economico', $unidad->numero_economico) }}" required>
@@ -55,54 +55,8 @@
                         @enderror
                     </div>
 
-                    <!-- 🔥 EQUIPOS -->
-                    <div class="col-12">
-                        <hr class="border-2 border-primary">
-                        <h5 class="text-primary"><i class="fas fa-microchip me-2"></i>Equipos Asignados</h5>
-                        <p class="text-muted small">Ingresa el identificador de cada equipo asignado a esta unidad</p>
-                    </div>
-
-                    <!-- E.T - Equipo Telpo -->
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">E.T (Equipo Telpo)</label>
-                        <input type="text" name="equipo_telpo" 
-                               class="form-control @error('equipo_telpo') is-invalid @enderror" 
-                               value="{{ old('equipo_telpo', $unidad->equipo_telpo) }}"
-                               placeholder="Ej: TEL-001">
-                        @error('equipo_telpo')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <small class="text-muted">Identificador del equipo Telpo</small>
-                    </div>
-
-                    <!-- E.G - Equipo GPS -->
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">E.G (Equipo GPS)</label>
-                        <input type="text" name="equipo_gps" 
-                               class="form-control @error('equipo_gps') is-invalid @enderror" 
-                               value="{{ old('equipo_gps', $unidad->equipo_gps) }}"
-                               placeholder="Ej: GPS-001">
-                        @error('equipo_gps')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <small class="text-muted">Identificador del equipo GPS</small>
-                    </div>
-
-                    <!-- E.B - Equipo Barras -->
-                    <div class="col-md-4">
-                        <label class="form-label fw-semibold">E.B (Equipo Barras)</label>
-                        <input type="text" name="equipo_barras" 
-                               class="form-control @error('equipo_barras') is-invalid @enderror" 
-                               value="{{ old('equipo_barras', $unidad->equipo_barras) }}"
-                               placeholder="Ej: BAR-001">
-                        @error('equipo_barras')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        <small class="text-muted">Identificador del equipo de barras</small>
-                    </div>
-
-                    <!-- Estado -->
-                    <div class="col-md-12">
+                    <!-- Estado Activo -->
+                    <div class="col-md-6 d-flex align-items-center">
                         <div class="form-check form-switch">
                             <input type="checkbox" name="activo" 
                                    class="form-check-input" id="activo" 
@@ -113,10 +67,71 @@
                         </div>
                     </div>
 
-                    <!-- Operador -->
+                    <!-- EQUIPOS ASIGNADOS - CHECKBOXES -->
                     <div class="col-12">
+                        <hr class="border-2 border-primary">
+                        <h5 class="text-primary"><i class="fas fa-microchip me-2"></i>Equipos Asignados</h5>
+                        <p class="text-muted small">Marca los equipos que estan asignados a esta unidad</p>
+                    </div>
+
+                    <!-- E.T - Equipo Telpo -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="equipo_telpo" value="0">
+                                    <input type="checkbox" name="equipo_telpo" 
+                                           class="form-check-input" id="equipo_telpo" 
+                                           value="1" {{ old('equipo_telpo', $unidad->equipo_telpo) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold ms-2" for="equipo_telpo">
+                                        <i class="fas fa-mobile-alt text-primary me-2"></i>
+                                        E.T (Equipo Telpo)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- E.G - Equipo GPS -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="equipo_gps" value="0">
+                                    <input type="checkbox" name="equipo_gps" 
+                                           class="form-check-input" id="equipo_gps" 
+                                           value="1" {{ old('equipo_gps', $unidad->equipo_gps) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold ms-2" for="equipo_gps">
+                                        <i class="fas fa-satellite text-success me-2"></i>
+                                        E.G (Equipo GPS)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- E.B - Equipo Barras -->
+                    <div class="col-md-4">
+                        <div class="card h-100 border-0 shadow-sm rounded-4">
+                            <div class="card-body d-flex align-items-center">
+                                <div class="form-check form-switch">
+                                    <input type="hidden" name="equipo_barras" value="0">
+                                    <input type="checkbox" name="equipo_barras" 
+                                           class="form-check-input" id="equipo_barras" 
+                                           value="1" {{ old('equipo_barras', $unidad->equipo_barras) ? 'checked' : '' }}>
+                                    <label class="form-check-label fw-semibold ms-2" for="equipo_barras">
+                                        <i class="fas fa-barcode text-warning me-2"></i>
+                                        E.B (Equipo Barras)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Operador -->
+                    <div class="col-12 mt-4">
                         <hr class="border-2 border-secondary">
-                        <h5><i class="fas fa-user me-2"></i>Asignación de Operador</h5>
+                        <h5><i class="fas fa-user me-2"></i>Asignacion de Operador</h5>
                     </div>
 
                     <div class="col-md-6">
@@ -130,7 +145,7 @@
                                 </option>
                             @endforeach
                         </select>
-                        <small class="text-muted">Selecciona el operador que estará asignado a esta unidad</small>
+                        <small class="text-muted">Selecciona el operador que estara asignado a esta unidad</small>
                     </div>
 
                     <div class="col-12">

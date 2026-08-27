@@ -1,32 +1,45 @@
-@extends('admin.layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="container-fluid px-4">
     <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
         <h1 class="h3">Nuevo Documento de Mantenimiento</h1>
-        <a href="{{ route('admin.documentos-mantenimiento.index') }}" class="btn btn-secondary rounded-pill px-4">Volver</a>
+        <a href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>" class="btn btn-secondary rounded-pill px-4">Volver</a>
     </div>
 
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-body p-4">
-            <form method="POST" action="{{ route('admin.documentos-mantenimiento.store') }}">
-                @csrf
+            <form method="POST" action="<?php echo e(route('admin.documentos-mantenimiento.store')); ?>">
+                <?php echo csrf_field(); ?>
 
                 <div class="row g-4">
                     <!-- Seleccion de Unidad -->
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Unidad *</label>
-                        <select name="unidad_id" id="unidad_id" class="form-select @error('unidad_id') is-invalid @enderror" required>
+                        <select name="unidad_id" id="unidad_id" class="form-select <?php $__errorArgs = ['unidad_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>" required>
                             <option value="">Seleccione una unidad...</option>
-                            @foreach($unidades as $unidad)
-                            <option value="{{ $unidad->id }}"
-                                data-zona="{{ $unidad->zona->nombre ?? '' }}"
-                                {{ (old('unidad_id', $unidadSeleccionada?->id) == $unidad->id) ? 'selected' : '' }}>
-                                {{ $unidad->numero_economico }} - {{ $unidad->nombre_unidad ?? 'Sin nombre' }}
+                            <?php $__currentLoopData = $unidades; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $unidad): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($unidad->id); ?>"
+                                data-zona="<?php echo e($unidad->zona->nombre ?? ''); ?>"
+                                <?php echo e((old('unidad_id', $unidadSeleccionada?->id) == $unidad->id) ? 'selected' : ''); ?>>
+                                <?php echo e($unidad->numero_economico); ?> - <?php echo e($unidad->nombre_unidad ?? 'Sin nombre'); ?>
+
                             </option>
-                            @endforeach
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
-                        @error('unidad_id') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <?php $__errorArgs = ['unidad_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="invalid-feedback"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <!-- Zona (Radio Button) -->
@@ -35,21 +48,28 @@
                         <div class="d-flex gap-4 mt-2">
                             <div class="form-check">
                                 <input type="radio" name="zona" id="zona_reyes" value="reyes" class="form-check-input"
-                                    {{ old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'reyes' ? 'checked' : '' }}>
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'reyes' ? 'checked' : ''); ?>>
                                 <label class="form-check-label" for="zona_reyes">Reyes</label>
                             </div>
                             <div class="form-check">
                                 <input type="radio" name="zona" id="zona_apaxco" value="apaxco" class="form-check-input"
-                                    {{ old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'apaxco' ? 'checked' : '' }}>
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'apaxco' ? 'checked' : ''); ?>>
                                 <label class="form-check-label" for="zona_apaxco">Apaxco</label>
                             </div>
                             <div class="form-check">
                                 <input type="radio" name="zona" id="zona_citrus" value="citrus" class="form-check-input"
-                                    {{ old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'citrus' ? 'checked' : '' }}>
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'citrus' ? 'checked' : ''); ?>>
                                 <label class="form-check-label" for="zona_citrus">Citrus</label>
                             </div>
                         </div>
-                        @error('zona') <div class="text-danger small">{{ $message }}</div> @enderror
+                        <?php $__errorArgs = ['zona'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="text-danger small"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <!-- Tecnologia reportada -->
@@ -65,7 +85,14 @@
                             <div class="col-md-3"><label><input type="checkbox" name="tecnologia[]" value="tubo_corrugado"> TUBO CORRUGADO</label></div>
                             <div class="col-md-3"><label><input type="checkbox" name="tecnologia[]" value="limpieza_camaras"> LIMPIEZA DE CAMARAS</label></div>
                         </div>
-                        @error('tecnologia') <div class="text-danger small">{{ $message }}</div> @enderror
+                        <?php $__errorArgs = ['tecnologia'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="text-danger small"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <!-- Estado de Camaras -->
@@ -112,7 +139,14 @@
                                 <label class="form-check-label" for="prueba_no">NO</label>
                             </div>
                         </div>
-                        @error('prueba_barras') <div class="text-danger small">{{ $message }}</div> @enderror
+                        <?php $__errorArgs = ['prueba_barras'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="text-danger small"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <!-- Comentarios / Observaciones -->
@@ -124,14 +158,42 @@
                     <!-- Fecha y Hora -->
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Fecha *</label>
-                        <input type="date" name="fecha" class="form-control @error('fecha') is-invalid @enderror" value="{{ date('Y-m-d') }}" required>
-                        @error('fecha') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <input type="date" name="fecha" class="form-control <?php $__errorArgs = ['fecha'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>" value="<?php echo e(date('Y-m-d')); ?>" required>
+                        <?php $__errorArgs = ['fecha'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="invalid-feedback"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Hora *</label>
-                        <input type="time" name="hora" class="form-control @error('hora') is-invalid @enderror" value="{{ date('H:i') }}" required>
-                        @error('hora') <div class="invalid-feedback">{{ $message }}</div> @enderror
+                        <input type="time" name="hora" class="form-control <?php $__errorArgs = ['hora'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>" value="<?php echo e(date('H:i')); ?>" required>
+                        <?php $__errorArgs = ['hora'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> <div class="invalid-feedback"><?php echo e($message); ?></div> <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <!-- Vigente -->
@@ -182,4 +244,5 @@
         }
     });
 </script>
-@endsection
+<?php $__env->stopSection(); ?>
+<?php echo $__env->make('admin.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\hulis\lusa-gestion-web\resources\views/admin/documentos/mantenimiento/create.blade.php ENDPATH**/ ?>
