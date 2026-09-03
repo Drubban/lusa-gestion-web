@@ -15,8 +15,19 @@ class Operador extends Model
     protected $fillable = [
         'clave_operador',
         'nombre_completo',
+        'zona_id',
         'activo',
     ];
+
+    protected $casts = [
+        'activo' => 'boolean',
+    ];
+
+    // Relación con Zona
+    public function zona()
+    {
+        return $this->belongsTo(Zona::class);
+    }
 
     // Relación con asignaciones
     public function asignaciones()

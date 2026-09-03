@@ -61,6 +61,21 @@ unset($__errorArgs, $__bag); ?>
                                     <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'citrus' ? 'checked' : ''); ?>>
                                 <label class="form-check-label" for="zona_citrus">Citrus</label>
                             </div>
+                            <div class="form-check">
+                                <input type="radio" name="zona" id="zona_tranzumpango" value="tranzumpango" class="form-check-input"
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'tranzumpango' ? 'checked' : ''); ?>>
+                                <label class="form-check-label" for="zona_tranzumpango">Tranzumpango</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="zona" id="zona_corredor_bc" value="corredor bc" class="form-check-input"
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'corredor bc' ? 'checked' : ''); ?>>
+                                <label class="form-check-label" for="zona_corredor_bc">Corredor BC</label>
+                            </div>
+                            <div class="form-check">
+                                <input type="radio" name="zona" id="zona_odz" value="odz" class="form-check-input"
+                                    <?php echo e(old('zona', $unidadSeleccionada?->zona?->nombre ?? '') == 'odz' ? 'checked' : ''); ?>>
+                                <label class="form-check-label" for="zona_odz">ODZ</label>
+                            </div>
                         </div>
                         <?php $__errorArgs = ['zona'];
 $__bag = $errors->getBag($__errorArgs[1] ?? 'default');

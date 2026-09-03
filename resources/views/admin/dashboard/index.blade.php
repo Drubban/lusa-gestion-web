@@ -2,232 +2,353 @@
 
 @section('content')
 <style>
-    .stat-card {
-        transition: transform 0.2s, box-shadow 0.2s;
-        border-radius: 1rem;
-        border: none;
+    /* ============================================
+       ESTILOS POWER BI
+    ============================================ */
+    :root {
+        --pbi-primary: #0d6efd;
+        --pbi-success: #198754;
+        --pbi-warning: #ffc107;
+        --pbi-danger: #dc3545;
+        --pbi-info: #0dcaf0;
+        --pbi-dark: #212529;
+        --pbi-gray: #6c757d;
+        --pbi-light: #f8f9fa;
+        --pbi-purple: #6f42c1;
+        --pbi-teal: #20c997;
+        --pbi-pink: #e83e8c;
     }
 
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    .pbi-card {
+        background: white;
+        border-radius: 0.75rem;
+        border: 1px solid #e9ecef;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.04);
+        transition: all 0.2s ease;
+        height: 100%;
+        overflow: hidden;
     }
 
-    .icon-circle {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
+    .pbi-card:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0,0,0,0.08);
+        transform: translateY(-2px);
+    }
+
+    .pbi-card-header {
+        padding: 0.75rem 1.25rem;
+        background: var(--pbi-light);
+        border-bottom: 1px solid #e9ecef;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--pbi-gray);
+    }
+
+    .pbi-card-body {
+        padding: 1.25rem;
+    }
+
+    .pbi-kpi {
+        text-align: center;
+        padding: 0.5rem 0;
+    }
+
+    .pbi-kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1.2;
+        color: var(--pbi-dark);
+    }
+
+    .pbi-kpi-value .trend-up { color: var(--pbi-success); font-size: 0.875rem; }
+    .pbi-kpi-value .trend-down { color: var(--pbi-danger); font-size: 0.875rem; }
+
+    .pbi-kpi-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--pbi-gray);
+        margin-top: 0.25rem;
+    }
+
+    .pbi-kpi-icon {
         font-size: 1.5rem;
+        color: var(--pbi-primary);
+        opacity: 0.5;
+        margin-bottom: 0.5rem;
     }
+
+    .pbi-progress {
+        height: 4px;
+        border-radius: 2px;
+        background: #e9ecef;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .pbi-progress-bar {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 1s ease;
+    }
+
+    .pbi-badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 50px;
+        font-size: 0.7rem;
+        font-weight: 600;
+    }
+
+    .pbi-badge-success { background: #d1e7dd; color: #0a3622; }
+    .pbi-badge-danger { background: #f8d7da; color: #58151c; }
+    .pbi-badge-warning { background: #fff3cd; color: #664d03; }
+    .pbi-badge-info { background: #cff4fc; color: #055160; }
+    .pbi-badge-secondary { background: #e9ecef; color: #41464b; }
+    .pbi-badge-primary { background: #cfe2ff; color: #084298; }
+    .pbi-badge-purple { background: #e2d9f3; color: #3d1f6e; }
 
     .chart-container {
         background: white;
-        border-radius: 1rem;
+        border-radius: 0.75rem;
         padding: 1rem;
-        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+        border: 1px solid #e9ecef;
         margin-bottom: 1.5rem;
-        overflow-x: auto;
     }
 
     .chart-wrapper {
-        height: 320px;
+        height: 220px;
         position: relative;
     }
 
-    canvas {
-        max-height: 100%;
-        width: auto !important;
+    .chart-wrapper-sm {
+        height: 180px;
+        position: relative;
     }
 
     .recent-list {
-        max-height: 250px;
+        max-height: 200px;
         overflow-y: auto;
     }
 
     .recent-list .list-group-item {
         border-left: 3px solid transparent;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+        border-color: #e9ecef;
     }
 
     .recent-list .list-group-item:hover {
-        background-color: #f8f9fa;
+        background-color: var(--pbi-light);
     }
 
-    .badge-equipo {
-        font-size: 0.7rem;
-        padding: 0.25rem 0.5rem;
+    .recent-list .list-group-item .badge {
+        font-weight: 500;
+        font-size: 0.65rem;
+    }
+
+    .pbi-row {
+        margin-bottom: 1.25rem;
+    }
+
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .pbi-animate {
+        animation: fadeInUp 0.5s ease forwards;
+    }
+
+    .pbi-delay-1 { animation-delay: 0.05s; }
+    .pbi-delay-2 { animation-delay: 0.10s; }
+    .pbi-delay-3 { animation-delay: 0.15s; }
+    .pbi-delay-4 { animation-delay: 0.20s; }
+
+    .text-purple { color: var(--pbi-purple); }
+    .text-teal { color: var(--pbi-teal); }
+    .text-pink { color: var(--pbi-pink); }
+    .bg-purple { background-color: var(--pbi-purple); }
+    .bg-teal { background-color: var(--pbi-teal); }
+
+    .pbi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 0.75rem;
+    }
+
+    .pbi-mini-card {
+        background: var(--pbi-light);
+        border-radius: 0.5rem;
+        padding: 0.75rem;
+        text-align: center;
+    }
+
+    .pbi-mini-card .value {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+
+    .pbi-mini-card .label {
+        font-size: 0.65rem;
+        text-transform: uppercase;
+        color: var(--pbi-gray);
+        letter-spacing: 0.5px;
     }
 </style>
 
-<div class="container-fluid px-4" style="overflow-y: auto; max-height: calc(100vh - 70px);">
-    <h1 class="mt-4">Panel de Administracion</h1>
-    <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item active">Bienvenido al sistema Lusa</li>
-    </ol>
+<div class="container-fluid px-4">
+    <!-- ============================================ -->
+    <!-- HEADER -->
+    <!-- ============================================ -->
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-4">
+        <div>
+            <h1 class="h2 fw-bold mb-0">
+                <i class="fas fa-chart-pie me-2 text-primary"></i>Dashboard Lusa
+            </h1>
+            <p class="text-muted small">Panel de control y análisis de datos</p>
+        </div>
+        <div>
+            <span class="badge bg-success rounded-pill px-3 py-2">
+                <i class="fas fa-sync-alt me-1"></i> {{ now()->format('d/m/Y H:i') }}
+            </span>
+        </div>
+    </div>
 
-    <!-- Fila 1: Tarjetas principales -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-primary text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Unidades</h5>
-                        <h2 class="mb-0">{{ $totalUnidades }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-primary">
-                        <i class="fas fa-bus"></i>
-                    </div>
+    <!-- ============================================ -->
+    <!-- FILA 1: KPIs PRINCIPALES -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate pbi-delay-1">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-primary"><i class="fas fa-bus"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalUnidades }}</div>
+                    <div class="pbi-kpi-label">Unidades</div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-success text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Operadores</h5>
-                        <h2 class="mb-0">{{ $totalOperadores }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-success">
-                        <i class="fas fa-users"></i>
-                    </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate pbi-delay-2">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-success"><i class="fas fa-users"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalOperadores }}</div>
+                    <div class="pbi-kpi-label">Operadores</div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-warning text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Mantenimientos</h5>
-                        <h2 class="mb-0">{{ $totalMantenimientos }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-warning">
-                        <i class="fas fa-clipboard-list"></i>
-                    </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate pbi-delay-3">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-warning"><i class="fas fa-clipboard-list"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalMantenimientos }}</div>
+                    <div class="pbi-kpi-label">Mantenimientos</div>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-info text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Capacitaciones</h5>
-                        <h2 class="mb-0">{{ $totalCapacitaciones }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-info">
-                        <i class="fas fa-graduation-cap"></i>
-                    </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate pbi-delay-4">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-info"><i class="fas fa-graduation-cap"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalCapacitaciones }}</div>
+                    <div class="pbi-kpi-label">Capacitaciones</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-danger"><i class="fas fa-boxes"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalInventario }}</div>
+                    <div class="pbi-kpi-label">Inventario</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card pbi-animate">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-icon text-purple"><i class="fas fa-file-invoice-dollar"></i></div>
+                    <div class="pbi-kpi-value">{{ $totalAjustes }}</div>
+                    <div class="pbi-kpi-label">Ajustes</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Fila 2: Tarjetas de nuevos modulos -->
-    <div class="row mb-4">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-danger text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Inventario</h5>
-                        <h2 class="mb-0">{{ $totalInventario }}</h2>
+    <!-- ============================================ -->
+    <!-- FILA 2: KPIs SECUNDARIOS -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-success">{{ $unidadesConMantenimientoReciente }}</div>
+                    <div class="pbi-kpi-label">Con Mantenimiento</div>
+                    <div class="pbi-progress">
+                        <div class="pbi-progress-bar" style="width: {{ $porcentajeUnidadesConMantenimiento }}%; background: var(--pbi-success);"></div>
                     </div>
-                    <div class="icon-circle bg-white text-danger">
-                        <i class="fas fa-boxes"></i>
-                    </div>
+                    <small class="text-muted">{{ $porcentajeUnidadesConMantenimiento }}%</small>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-secondary text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Ajustes</h5>
-                        <h2 class="mb-0">{{ $totalAjustes }}</h2>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-danger">{{ $unidadesSinMantenimiento }}</div>
+                    <div class="pbi-kpi-label">Sin Mantenimiento</div>
+                    <div class="pbi-progress">
+                        <div class="pbi-progress-bar" style="width: {{ $porcentajeSinMantenimiento }}%; background: var(--pbi-danger);"></div>
                     </div>
-                    <div class="icon-circle bg-white text-secondary">
-                        <i class="fas fa-file-invoice-dollar"></i>
-                    </div>
+                    <small class="text-muted">{{ $porcentajeSinMantenimiento }}%</small>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-dark text-white">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Tecnologias</h5>
-                        <h2 class="mb-0">{{ $totalTecnologias }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-dark">
-                        <i class="fas fa-microchip"></i>
-                    </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-primary">{{ $promedioDiasMantenimiento ?? 'N/A' }}</div>
+                    <div class="pbi-kpi-label">Días Promedio</div>
+                    <small class="text-muted">entre mantenimientos</small>
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card bg-purple text-white" style="background-color: #6f42c1;">
-                <div class="card-body d-flex justify-content-between align-items-center">
-                    <div>
-                        <h5 class="card-title mb-0">Asignaciones</h5>
-                        <h2 class="mb-0">{{ $asignacionesVigentes }}</h2>
-                    </div>
-                    <div class="icon-circle bg-white text-purple" style="color: #6f42c1;">
-                        <i class="fas fa-handshake"></i>
-                    </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-warning">${{ number_format($montoTotalAjustes, 0) }}</div>
+                    <div class="pbi-kpi-label">Monto Total Ajustes</div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Tecnologias Asignadas (barras, telpo, gps, mdvr) -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold text-success">
-                    <i class="fas fa-microchip me-2"></i>Tecnologias Asignadas
-                    <small class="text-muted">(barras, telpo, gps, mdvr)</small>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-info">{{ $agendamientosPendientes }}</div>
+                    <div class="pbi-kpi-label">Agendamientos Pendientes</div>
                 </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-md-3">
-                            <div class="p-3 border rounded-3">
-                                <h5 class="text-info">Barras</h5>
-                                <h3 class="mb-0">{{ $unidadesConBarras }}</h3>
-                                <small class="text-muted">unidades con Barras</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="p-3 border rounded-3">
-                                <h5 class="text-info">Telpo</h5>
-                                <h3 class="mb-0">{{ $unidadesConTelpo }}</h3>
-                                <small class="text-muted">unidades con Telpo</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="p-3 border rounded-3">
-                                <h5 class="text-info">GPS</h5>
-                                <h3 class="mb-0">{{ $unidadesConGps }}</h3>
-                                <small class="text-muted">unidades con GPS</small>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="p-3 border rounded-3">
-                                <h5 class="text-info">MDVR</h5>
-                                <h3 class="mb-0">{{ $unidadesConMdvr }}</h3>
-                                <small class="text-muted">unidades con MDVR</small>
-                            </div>
-                        </div>
-                    </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-body text-center">
+                    <div class="pbi-kpi-value text-danger">{{ $agendamientosVencidos }}</div>
+                    <div class="pbi-kpi-label">Agendamientos Vencidos</div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Fila 4: Graficos principales -->
-    <div class="row">
+    <!-- ============================================ -->
+    <!-- FILA 3: GRAFICOS PRINCIPALES -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
         <div class="col-xl-8">
             <div class="chart-container">
-                <h5 class="mb-3">Movimientos de unidades (ultimos 7 dias)</h5>
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line me-2 text-primary"></i>Movimientos (Últimos 7 días)</h6>
+                    <span class="badge bg-secondary rounded-pill">+{{ array_sum($fechas) }} total</span>
+                </div>
                 <div class="chart-wrapper">
                     <canvas id="movimientosChart"></canvas>
                 </div>
@@ -235,7 +356,7 @@
         </div>
         <div class="col-xl-4">
             <div class="chart-container">
-                <h5 class="mb-3">Movimientos por departamento</h5>
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-pie me-2 text-success"></i>Movimientos por Depto</h6>
                 <div class="chart-wrapper">
                     <canvas id="deptosChart"></canvas>
                 </div>
@@ -243,39 +364,29 @@
         </div>
     </div>
 
-    <!-- Fila 5: Graficos secundarios -->
-    <div class="row">
-        <div class="col-xl-6">
+    <!-- ============================================ -->
+    <!-- FILA 4: GRAFICOS SECUNDARIOS -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-xl-4">
             <div class="chart-container">
-                <h5 class="mb-3">Documentos de mantenimiento (ultimos 6 meses)</h5>
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar me-2 text-warning"></i>Mantenimientos (6 meses)</h6>
                 <div class="chart-wrapper">
                     <canvas id="docsChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-xl-6">
+        <div class="col-xl-4">
             <div class="chart-container">
-                <h5 class="mb-3">Tecnologias por tipo</h5>
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar me-2 text-info"></i>Capacitaciones (6 meses)</h6>
                 <div class="chart-wrapper">
-                    <canvas id="tecnologiasChart"></canvas>
+                    <canvas id="capChart"></canvas>
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Fila 6: Graficos de inventario y ajustes -->
-    <div class="row">
-        <div class="col-xl-6">
+        <div class="col-xl-4">
             <div class="chart-container">
-                <h5 class="mb-3">Inventario por categoria</h5>
-                <div class="chart-wrapper">
-                    <canvas id="inventarioChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-6">
-            <div class="chart-container">
-                <h5 class="mb-3">Ajustes por mes</h5>
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar me-2 text-purple"></i>Ajustes por Mes</h6>
                 <div class="chart-wrapper">
                     <canvas id="ajustesChart"></canvas>
                 </div>
@@ -283,100 +394,202 @@
         </div>
     </div>
 
-    <!-- Fila 7: Registros recientes -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-clock me-2"></i>Ultimos Mantenimientos
-                </div>
-                <div class="card-body recent-list p-0">
-                    <ul class="list-group list-group-flush">
-                        @forelse($ultimosMantenimientos as $item)
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="fw-bold">{{ $item->asignacion->unidad->numero_economico ?? 'N/A' }}</span>
-                                <span class="text-muted ms-2">{{ $item->tipo_mantenimiento ?? 'Sin tipo' }}</span>
-                            </div>
-                            <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
-                        </li>
-                        @empty
-                        <li class="list-group-item text-muted text-center">Sin mantenimientos recientes</li>
-                        @endforelse
-                    </ul>
+    <!-- ============================================ -->
+    <!-- FILA 5: TENDENCIAS E INVENTARIO -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-xl-6">
+            <div class="chart-container">
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-line me-2 text-danger"></i>Tendencia de Mantenimientos (12 semanas)</h6>
+                <div class="chart-wrapper">
+                    <canvas id="tendenciaMantenimientoChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-clock me-2"></i>Ultimos Inventarios
-                </div>
-                <div class="card-body recent-list p-0">
-                    <ul class="list-group list-group-flush">
-                        @forelse($ultimosInventarios as $item)
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="fw-bold">{{ $item->nombre_recibe }}</span>
-                                <span class="badge bg-info ms-2">{{ $item->nombre_categoria }}</span>
-                            </div>
-                            <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
-                        </li>
-                        @empty
-                        <li class="list-group-item text-muted text-center">Sin inventarios recientes</li>
-                        @endforelse
-                    </ul>
+        <div class="col-xl-6">
+            <div class="chart-container">
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar me-2 text-primary"></i>Inventario por Categoría</h6>
+                <div class="chart-wrapper">
+                    <canvas id="inventarioChart"></canvas>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Fila 8: Ajustes recientes -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-clock me-2"></i>Ultimos Ajustes
-                </div>
-                <div class="card-body recent-list p-0">
-                    <ul class="list-group list-group-flush">
-                        @forelse($ultimosAjustes as $item)
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="fw-bold">{{ $item->folio }}</span>
-                                <span class="text-muted ms-2">${{ number_format($item->monto_total, 2) }}</span>
-                                <span class="badge {{ $item->firmado ? 'bg-success' : 'bg-warning' }} ms-2">
-                                    {{ $item->firmado ? 'Firmado' : 'Pendiente' }}
-                                </span>
-                            </div>
-                            <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
-                        </li>
-                        @empty
-                        <li class="list-group-item text-muted text-center">Sin ajustes recientes</li>
-                        @endforelse
-                    </ul>
+    <!-- ============================================ -->
+    <!-- FILA 6: ESTADO DE MANTENIMIENTO -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-xl-6">
+            <div class="chart-container">
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-doughnut me-2 text-warning"></i>Estado de Mantenimiento</h6>
+                <div class="chart-wrapper">
+                    <canvas id="estadosMantenimientoChart"></canvas>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-clock me-2"></i>Ultimas Capacitaciones
+        <div class="col-xl-6">
+            <div class="chart-container">
+                <h6 class="fw-bold mb-3"><i class="fas fa-chart-bar me-2 text-success"></i>Inventario por Departamento</h6>
+                <div class="chart-wrapper">
+                    <canvas id="inventarioDeptoChart"></canvas>
                 </div>
-                <div class="card-body recent-list p-0">
-                    <ul class="list-group list-group-flush">
-                        @forelse($ultimasCapacitaciones as $item)
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="fw-bold">{{ $item->asignacion->operador->nombre_completo ?? 'N/A' }}</span>
-                                <span class="text-muted ms-2">{{ $item->asignacion->unidad->numero_economico ?? 'N/A' }}</span>
-                            </div>
-                            <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
-                        </li>
-                        @empty
-                        <li class="list-group-item text-muted text-center">Sin capacitaciones recientes</li>
-                        @endforelse
-                    </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- FILA 7: REGISTROS RECIENTES (TODAS LAS CATEGORÍAS) -->
+    <!-- ============================================ -->
+    <div class="row pbi-row">
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-clipboard-list me-2 text-warning"></i>Últimos Mantenimientos
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimosMantenimientos as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->asignacion->unidad->numero_economico ?? 'N/A' }}</span>
+                                    <span class="text-muted ms-1 small">{{ $item->tipo_mantenimiento ?? 'Sin tipo' }}</span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-graduation-cap me-2 text-info"></i>Últimas Capacitaciones
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimasCapacitaciones as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->asignacion->operador->nombre_completo ?? 'N/A' }}</span>
+                                    <span class="text-muted ms-1 small">{{ $item->asignacion->unidad->numero_economico ?? '' }}</span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-boxes me-2 text-danger"></i>Últimos Inventarios
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimosInventarios as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->nombre_recibe }}</span>
+                                    <span class="pbi-badge pbi-badge-info ms-1">{{ $item->nombre_categoria }}</span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-file-invoice-dollar me-2 text-purple"></i>Últimos Ajustes
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimosAjustes as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->folio }}</span>
+                                    <span class="text-muted ms-1">${{ number_format($item->monto_total, 2) }}</span>
+                                    <span class="pbi-badge {{ $item->firmado ? 'pbi-badge-success' : 'pbi-badge-warning' }} ms-1">
+                                        {{ $item->firmado ? 'Firmado' : 'Pendiente' }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-exchange-alt me-2 text-primary"></i>Últimos Movimientos
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimosMovimientos as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->departamento->nombre ?? 'N/A' }}</span>
+                                    <span class="pbi-badge {{ $item->tipo == 'entrada' ? 'pbi-badge-success' : 'pbi-badge-danger' }} ms-1">
+                                        {{ ucfirst($item->tipo ?? '') }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-3">
+            <div class="pbi-card">
+                <div class="pbi-card-header">
+                    <i class="fas fa-calendar-check me-2 text-info"></i>Últimos Agendamientos
+                </div>
+                <div class="pbi-card-body p-0">
+                    <div class="recent-list">
+                        <ul class="list-group list-group-flush">
+                            @forelse($ultimosAgendamientos as $item)
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="fw-bold">{{ $item->unidad->numero_economico ?? 'N/A' }}</span>
+                                    <span class="pbi-badge {{ $item->estado == 'pendiente' ? 'pbi-badge-warning' : 'pbi-badge-success' }} ms-1">
+                                        {{ ucfirst($item->estado) }}
+                                    </span>
+                                </div>
+                                <small class="text-muted">{{ $item->created_at->diffForHumans() }}</small>
+                            </li>
+                            @empty
+                            <li class="list-group-item text-muted text-center">Sin registros</li>
+                            @endforelse
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -387,61 +600,64 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Datos desde Laravel
+        // ============================================
+        // DATOS
+        // ============================================
         const fechas = @json(array_keys($fechas));
         const valores = @json(array_values($fechas));
         const deptosNombres = @json(array_column($movimientosPorDepto, 'nombre'));
         const deptosTotales = @json(array_column($movimientosPorDepto, 'total'));
         const meses = @json(array_column($docPorMes, 'mes'));
         const totalDocs = @json(array_column($docPorMes, 'total'));
-
-        // Datos de inventario
-        const inventarioCategorias = @json(array_column($inventarioPorCategoria, 'categoria'));
-        const inventarioTotales = @json(array_column($inventarioPorCategoria, 'total'));
-
-        // Datos de tecnologias
-        const tecnologiasTipos = @json(array_column($tecnologiasPorTipo, 'tipo'));
-        const tecnologiasTotales = @json(array_column($tecnologiasPorTipo, 'total'));
-
-        // Datos de ajustes
+        const capMeses = @json(array_column($capPorMes, 'mes'));
+        const totalCaps = @json(array_column($capPorMes, 'total'));
         const ajustesMeses = @json(array_column($ajustesPorMes, 'mes'));
         const ajustesTotales = @json(array_column($ajustesPorMes, 'total'));
 
-        // Colores predefinidos
-        const colores = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c'];
+        const inventarioCategorias = @json(array_column($inventarioPorCategoria, 'categoria'));
+        const inventarioTotales = @json(array_column($inventarioPorCategoria, 'total'));
+        const inventarioDeptoNombres = @json(array_column($inventarioPorDepto, 'nombre'));
+        const inventarioDeptoTotales = @json(array_column($inventarioPorDepto, 'total'));
 
-        // Grafico de lineas - Movimientos
-        const ctxMov = document.getElementById('movimientosChart').getContext('2d');
-        new Chart(ctxMov, {
+        const estadosMantenimientoLabels = @json(array_keys($estadosMantenimiento));
+        const estadosMantenimientoValues = @json(array_values($estadosMantenimiento));
+
+        const tendenciaMantenimientoLabels = @json(array_column($tendenciaMantenimientos, 'semana'));
+        const tendenciaMantenimientoValues = @json(array_column($tendenciaMantenimientos, 'total'));
+
+        const colores = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14', '#20c997', '#e83e8c'];
+        const coloresPastel = ['#cfe2ff', '#d1e7dd', '#fff3cd', '#f8d7da', '#e2d9f3', '#cff4fc', '#d1f2eb', '#f5c2d3'];
+
+        // ============================================
+        // GRAFICO: MOVIMIENTOS
+        // ============================================
+        new Chart(document.getElementById('movimientosChart'), {
             type: 'line',
             data: {
-                labels: fechas.map(f => new Date(f).toLocaleDateString('es-ES', {
-                    day: '2-digit',
-                    month: 'short'
-                })),
+                labels: fechas.map(f => new Date(f).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })),
                 datasets: [{
                     label: 'Movimientos',
                     data: valores,
                     borderColor: '#0d6efd',
                     backgroundColor: 'rgba(13,110,253,0.1)',
                     tension: 0.3,
-                    fill: true
+                    fill: true,
+                    pointBackgroundColor: '#0d6efd',
+                    pointRadius: 3,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'top'
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
         });
 
-        // Grafico de dona - Departamentos
-        const ctxDept = document.getElementById('deptosChart').getContext('2d');
-        new Chart(ctxDept, {
+        // ============================================
+        // GRAFICO: DEPARTAMENTOS (Dona)
+        // ============================================
+        new Chart(document.getElementById('deptosChart'), {
             type: 'doughnut',
             data: {
                 labels: deptosNombres,
@@ -454,69 +670,109 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } },
+                cutout: '65%'
             }
         });
 
-        // Grafico de barras - Documentos
-        const ctxDocs = document.getElementById('docsChart').getContext('2d');
-        new Chart(ctxDocs, {
+        // ============================================
+        // GRAFICO: MANTENIMIENTOS (Barras)
+        // ============================================
+        new Chart(document.getElementById('docsChart'), {
             type: 'bar',
             data: {
                 labels: meses,
                 datasets: [{
-                    label: 'Documentos de mantenimiento',
+                    label: 'Mantenimientos',
                     data: totalDocs,
                     backgroundColor: '#ffc107',
-                    borderRadius: 8
+                    borderRadius: 4,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
         });
 
-        // Grafico de dona - Tecnologias
-        const ctxTec = document.getElementById('tecnologiasChart').getContext('2d');
-        new Chart(ctxTec, {
-            type: 'doughnut',
+        // ============================================
+        // GRAFICO: CAPACITACIONES (Barras)
+        // ============================================
+        new Chart(document.getElementById('capChart'), {
+            type: 'bar',
             data: {
-                labels: tecnologiasTipos.map(t => t.charAt(0).toUpperCase() + t.slice(1)),
+                labels: capMeses,
                 datasets: [{
-                    data: tecnologiasTotales,
-                    backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'],
-                    borderWidth: 0
+                    label: 'Capacitaciones',
+                    data: totalCaps,
+                    backgroundColor: '#0dcaf0',
+                    borderRadius: 4,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
         });
 
-        // Grafico de barras - Inventario
-        const ctxInv = document.getElementById('inventarioChart').getContext('2d');
+        // ============================================
+        // GRAFICO: AJUSTES (Barras)
+        // ============================================
+        new Chart(document.getElementById('ajustesChart'), {
+            type: 'bar',
+            data: {
+                labels: ajustesMeses,
+                datasets: [{
+                    label: 'Ajustes',
+                    data: ajustesTotales,
+                    backgroundColor: '#6f42c1',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        // ============================================
+        // GRAFICO: TENDENCIA MANTENIMIENTOS
+        // ============================================
+        new Chart(document.getElementById('tendenciaMantenimientoChart'), {
+            type: 'line',
+            data: {
+                labels: tendenciaMantenimientoLabels,
+                datasets: [{
+                    label: 'Mantenimientos',
+                    data: tendenciaMantenimientoValues,
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220,53,69,0.1)',
+                    tension: 0.3,
+                    fill: true,
+                    pointBackgroundColor: '#dc3545',
+                    pointRadius: 3,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+
+        // ============================================
+        // GRAFICO: INVENTARIO POR CATEGORIA
+        // ============================================
         const inventarioLabels = inventarioCategorias.map(c => {
             const map = {
-                'equipos_computo': 'Equipos Computo',
+                'equipos_computo': 'Computo',
                 'routers_switches': 'Routers/Switches',
                 'telefonia': 'Telefonia',
                 'consumibles': 'Consumibles',
@@ -525,55 +781,65 @@
             };
             return map[c] || c;
         });
-        new Chart(ctxInv, {
+        new Chart(document.getElementById('inventarioChart'), {
             type: 'bar',
             data: {
                 labels: inventarioLabels,
                 datasets: [{
-                    label: 'Registros de inventario',
+                    label: 'Registros',
                     data: inventarioTotales,
-                    backgroundColor: '#0d6efd',
-                    borderRadius: 8
+                    backgroundColor: colores.slice(0, inventarioLabels.length),
+                    borderRadius: 4,
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                }
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
         });
 
-        // Grafico de barras - Ajustes
-        const ctxAju = document.getElementById('ajustesChart').getContext('2d');
-        new Chart(ctxAju, {
-            type: 'bar',
+        // ============================================
+        // GRAFICO: ESTADOS DE MANTENIMIENTO
+        // ============================================
+        new Chart(document.getElementById('estadosMantenimientoChart'), {
+            type: 'doughnut',
             data: {
-                labels: ajustesMeses,
+                labels: estadosMantenimientoLabels,
                 datasets: [{
-                    label: 'Ajustes registrados',
-                    data: ajustesTotales,
-                    backgroundColor: '#6f42c1',
-                    borderRadius: 8
+                    data: estadosMantenimientoValues,
+                    backgroundColor: ['#198754', '#ffc107', '#fd7e14', '#dc3545', '#6c757d'],
+                    borderWidth: 0
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                }
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } } },
+                cutout: '65%'
+            }
+        });
+
+        // ============================================
+        // GRAFICO: INVENTARIO POR DEPARTAMENTO
+        // ============================================
+        new Chart(document.getElementById('inventarioDeptoChart'), {
+            type: 'bar',
+            data: {
+                labels: inventarioDeptoNombres,
+                datasets: [{
+                    label: 'Registros',
+                    data: inventarioDeptoTotales,
+                    backgroundColor: '#20c997',
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
             }
         });
     });

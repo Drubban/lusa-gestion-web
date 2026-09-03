@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Zona;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -12,7 +13,11 @@ class ZonaSeeder extends Seeder
      */
     public function run(): void
     {
-        $zonas = ['reyes', 'apaxco', 'citrus'];
-        foreach ($zonas as $z) Zona::create(['nombre' => $z]);
+        $zonas = ['reyes', 'apaxco', 'citrus', 'tranzumpango', 'corredor bc', 'odz'];
+
+        foreach ($zonas as $z) {
+            // Busca por nombre, si no existe lo crea de forma segura
+            Zona::firstOrCreate(['nombre' => $z]);
+        }
     }
 }

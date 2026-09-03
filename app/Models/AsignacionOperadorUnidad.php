@@ -31,9 +31,27 @@ class AsignacionOperadorUnidad extends Model
         return $this->belongsTo(Operador::class);
     }
 
-    // Relación con Unidad (esta es la que faltaba)
+    // Relación con Unidad
     public function unidad()
     {
         return $this->belongsTo(Unidad::class);
+    }
+
+    // 🔥 RELACIÓN CON DOCUMENTOS DE MANTENIMIENTO - AGREGAR ESTA
+    public function documentosMantenimiento()
+    {
+        return $this->hasMany(DocumentoMantenimiento::class, 'asignacion_id');
+    }
+
+    // 🔥 RELACIÓN CON DOCUMENTOS DE CAPACITACIÓN - AGREGAR ESTA (opcional)
+    public function documentosCapacitacion()
+    {
+        return $this->hasMany(DocumentoCapacitacion::class, 'asignacion_id');
+    }
+
+    // 🔥 RELACIÓN CON MOVIMIENTOS - AGREGAR ESTA (opcional)
+    public function movimientos()
+    {
+        return $this->hasMany(MovimientoDepartamento::class, 'asignacion_id');
     }
 }

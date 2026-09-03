@@ -131,4 +131,23 @@ class Unidad extends Model
     {
         return $this->hasMany(Tecnologia::class);
     }
+
+    // Agregar esta relación
+    public function agendamientos()
+    {
+        return $this->hasMany(AgendamientoMantenimiento::class);
+    }
+
+    public function agendamientoPendiente()
+    {
+        return $this->hasOne(AgendamientoMantenimiento::class)
+            ->where('estado', 'pendiente')
+            ->orderBy('fecha_agendada', 'asc');
+    }
+
+    public function ultimoAgendamiento()
+    {
+        return $this->hasOne(AgendamientoMantenimiento::class)
+            ->orderBy('created_at', 'desc');
+    }
 }
