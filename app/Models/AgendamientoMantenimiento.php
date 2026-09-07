@@ -18,12 +18,16 @@ class AgendamientoMantenimiento extends Model
         'estado',
         'fecha_cumplimiento',
         'observaciones',
+        'motivo_no_presentado',
+        'fecha_reprogramada',
+        'reportado_por',
         'created_by',
     ];
 
     protected $casts = [
         'fecha_agendada' => 'date',
         'fecha_cumplimiento' => 'date',
+        'fecha_reprogramada' => 'date',
     ];
 
     // Relaciones
@@ -35,6 +39,11 @@ class AgendamientoMantenimiento extends Model
     public function creador(): BelongsTo
     {
         return $this->belongsTo(UsuarioDepartamento::class, 'created_by');
+    }
+
+    public function reportadoPor(): BelongsTo
+    {
+        return $this->belongsTo(UsuarioDepartamento::class, 'reportado_por');
     }
 
     // Scopes
@@ -58,7 +67,11 @@ class AgendamientoMantenimiento extends Model
         return $query->where('estado', 'reagendado');
     }
 
-    // Métodos de ayuda
+    public function scopeReportados($query)
+    {
+        return $query->where('estado', 'no_cumplido');
+    }
+
     public function getEstadoBadgeAttribute(): string
     {
         return match ($this->estado) {
@@ -76,5 +89,18 @@ class AgendamientoMantenimiento extends Model
             return null;
         }
         return now()->diffInDays($this->fecha_agendada, false);
+    }
+
+    public function getMotivoDisplayAttribute(): string
+    {
+        $motivos = [
+            'taller' => 'En taller',
+            'averia' => 'Avería mecánica',
+            'falta_operador' => 'Falta de operador',
+            'documentacion' => 'Falta de documentación',
+            'cliente' => 'Unidad en ruta con cliente',
+            'otros' => 'Otro motivo',
+        ];
+        return $motivos[$this->motivo_no_presentado] ?? $this->motivo_no_presentado ?? 'Sin especificar';
     }
 }

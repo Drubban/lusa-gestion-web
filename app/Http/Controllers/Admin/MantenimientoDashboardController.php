@@ -7,6 +7,7 @@ use App\Models\Unidad;
 use App\Models\DocumentoMantenimiento;
 use App\Models\AsignacionOperadorUnidad;
 use App\Models\AgendamientoMantenimiento;
+use App\Models\Tecnologia;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -17,16 +18,72 @@ class MantenimientoDashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $unidades = Unidad::with([
+        // Aplicar filtros
+        $query = Unidad::with([
             'zona',
             'asignacionVigente.operador',
-            'tecnologias',
-            'agendamientoPendiente'
-        ])
-            ->where('activo', true)
-            ->orderBy('numero_economico')
-            ->get();
+            'tecnologias'
+        ])->where('activo', true);
 
+        // Filtro por estado
+        if ($request->filled('estado')) {
+            $estado = $request->estado;
+            // Los estados se calculan después, no se pueden filtrar en la consulta
+            // Lo manejaremos en PHP después de obtener los datos
+        }
+
+        // Filtro por zona
+        if ($request->filled('zona')) {
+            $query->whereHas('zona', function ($q) use ($request) {
+                $q->where('nombre', $request->zona);
+            });
+        }
+
+        // Búsqueda
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('numero_economico', 'LIKE', "%{$search}%")
+                    ->orWhere('nombre_unidad', 'LIKE', "%{$search}%")
+                    ->orWhereHas('asignacionVigente.operador', function ($q2) use ($search) {
+                        $q2->where('nombre_completo', 'LIKE', "%{$search}%");
+                    });
+            });
+        }
+
+        // Obtener las unidades con sus relaciones en una sola consulta
+        $unidades = $query->orderBy('numero_economico')->get();
+
+        // Obtener IDs de unidades para consultas masivas
+        $unidadIds = $unidades->pluck('id')->toArray();
+
+        // Obtener TODOS los últimos mantenimientos en UNA consulta
+        $ultimosMantenimientos = DocumentoMantenimiento::whereHas('asignacion', function ($q) use ($unidadIds) {
+            $q->whereIn('unidad_id', $unidadIds);
+        })
+            ->orderBy('fecha', 'desc')
+            ->orderBy('hora', 'desc')
+            ->get()
+            ->groupBy('asignacion.unidad_id')
+            ->map(function ($group) {
+                return $group->first();
+            });
+
+        // Obtener TODOS los agendamientos pendientes en UNA consulta
+        $agendamientosPendientes = AgendamientoMantenimiento::whereIn('unidad_id', $unidadIds)
+            ->where('estado', 'pendiente')
+            ->get()
+            ->keyBy('unidad_id');
+
+        // Obtener TODAS las tecnologías en UNA consulta
+        $tecnologiasPorUnidad = Tecnologia::whereIn('unidad_id', $unidadIds)
+            ->get()
+            ->groupBy('unidad_id')
+            ->map(function ($group) {
+                return $group->pluck('tipo')->toArray();
+            });
+
+        // Procesar datos
         $dashboard = [];
         $totalUnidades = $unidades->count();
         $conMantenimiento = 0;
@@ -40,14 +97,9 @@ class MantenimientoDashboardController extends Controller
         $requiereAtencion = 0;
 
         foreach ($unidades as $unidad) {
-            $ultimoMantenimiento = DocumentoMantenimiento::whereHas('asignacion', function ($query) use ($unidad) {
-                $query->where('unidad_id', $unidad->id);
-            })
-                ->orderBy('fecha', 'desc')
-                ->orderBy('hora', 'desc')
-                ->first();
-
-            $agendamientoPendiente = $unidad->agendamientoPendiente;
+            $ultimoMantenimiento = $ultimosMantenimientos[$unidad->id] ?? null;
+            $agendamientoPendiente = $agendamientosPendientes[$unidad->id] ?? null;
+            $tecnologias = $tecnologiasPorUnidad[$unidad->id] ?? [];
 
             $diasDesde = null;
             $estado = 'Sin mantenimiento';
@@ -70,16 +122,16 @@ class MantenimientoDashboardController extends Controller
                         $color = 'success';
                         $recientes++;
                     } elseif ($diasDesde <= 14) {
-                        $estado = 'Atención media';
+                        $estado = 'Atencion media';
                         $color = 'warning';
                         $atencionMedia++;
                     } elseif ($diasDesde <= 21) {
-                        $estado = 'Requiere atención';
+                        $estado = 'Requiere atencion';
                         $color = 'orange';
                         $requiereAtencion++;
                         $urgentes++;
                     } else {
-                        $estado = 'Atención urgente';
+                        $estado = 'Atencion urgente';
                         $color = 'danger';
                         $urgentes++;
                     }
@@ -94,16 +146,16 @@ class MantenimientoDashboardController extends Controller
                         $color = 'success';
                         $recientes++;
                     } elseif ($diasDesde <= 14) {
-                        $estado = 'Atención media';
+                        $estado = 'Atencion media';
                         $color = 'warning';
                         $atencionMedia++;
                     } elseif ($diasDesde <= 21) {
-                        $estado = 'Requiere atención';
+                        $estado = 'Requiere atencion';
                         $color = 'orange';
                         $requiereAtencion++;
                         $urgentes++;
                     } else {
-                        $estado = 'Atención urgente';
+                        $estado = 'Atencion urgente';
                         $color = 'danger';
                         $urgentes++;
                     }
@@ -129,8 +181,6 @@ class MantenimientoDashboardController extends Controller
                 }
             }
 
-            $tecnologias = $unidad->tecnologias->pluck('tipo')->toArray();
-
             $dashboard[] = [
                 'unidad' => $unidad,
                 'ultimo_mantenimiento' => $ultimoMantenimiento,
@@ -149,6 +199,33 @@ class MantenimientoDashboardController extends Controller
             ];
         }
 
+        // Aplicar filtro de agendamiento (con/sin)
+        if ($request->filled('agendamiento')) {
+            if ($request->agendamiento === 'con') {
+                $dashboard = array_filter($dashboard, function ($item) {
+                    return $item['agendamiento'] !== null;
+                });
+            } elseif ($request->agendamiento === 'sin') {
+                $dashboard = array_filter($dashboard, function ($item) {
+                    return $item['agendamiento'] === null;
+                });
+            }
+        }
+
+        // Aplicar filtro de estado (después de calcular)
+        if ($request->filled('estado') && $request->estado !== '') {
+            $estadoFiltro = $request->estado;
+            $dashboard = array_filter($dashboard, function ($item) use ($estadoFiltro) {
+                return $item['estado'] === $estadoFiltro;
+            });
+        }
+
+        // Re-indexar array
+        $dashboard = array_values($dashboard);
+
+        // Estadísticas
+        $totalDashboard = count($dashboard);
+
         $porcentajeConMantenimiento = $totalUnidades > 0 ? round(($conMantenimiento / $totalUnidades) * 100, 1) : 0;
         $porcentajeSinMantenimiento = $totalUnidades > 0 ? round(($sinMantenimiento / $totalUnidades) * 100, 1) : 0;
         $porcentajeVencidos = $totalUnidades > 0 ? round(($vencidos / $totalUnidades) * 100, 1) : 0;
@@ -157,12 +234,13 @@ class MantenimientoDashboardController extends Controller
 
         $estadosData = [
             'Reciente' => $recientes,
-            'Atención media' => $atencionMedia,
-            'Requiere atención' => $requiereAtencion,
-            'Atención urgente' => $urgentes,
+            'Atencion media' => $atencionMedia,
+            'Requiere atencion' => $requiereAtencion,
+            'Atencion urgente' => $urgentes,
             'Sin mantenimiento' => $sinMantenimiento,
         ];
 
+        // Zonas - consulta optimizada
         $zonasData = Unidad::where('activo', true)
             ->select('zona_id', DB::raw('count(*) as total'))
             ->groupBy('zona_id')
@@ -174,6 +252,7 @@ class MantenimientoDashboardController extends Controller
             ])
             ->toArray();
 
+        // Tendencia - consulta optimizada
         $tendenciaAgendamientos = AgendamientoMantenimiento::where('created_at', '>=', now()->subDays(6))
             ->select(DB::raw("DATE(created_at) as fecha"), DB::raw("COUNT(*) as total"))
             ->groupBy('fecha')
@@ -243,15 +322,72 @@ class MantenimientoDashboardController extends Controller
             $omitidos = 0;
 
             foreach ($validated['unidades'] as $unidadId) {
+                // Verificar si tiene agendamiento pendiente
                 $existente = AgendamientoMantenimiento::where('unidad_id', $unidadId)
                     ->where('estado', 'pendiente')
                     ->first();
 
                 if ($existente) {
-                    $omitidos++;
+                    // Verificar si la fecha del agendamiento ya pasó
+                    if ($existente->fecha_agendada < now()->toDateString()) {
+                        // Si la fecha ya pasó, actualizar a no_cumplido y crear nuevo
+                        $existente->update([
+                            'estado' => 'no_cumplido',
+                            'observaciones' => ($existente->observaciones ?? '') . ' - Vencido automáticamente',
+                            'reportado_por' => Auth::id(),
+                        ]);
+
+                        // Crear nuevo agendamiento
+                        AgendamientoMantenimiento::create([
+                            'unidad_id' => $unidadId,
+                            'fecha_agendada' => $validated['fecha_agendada'],
+                            'estado' => 'pendiente',
+                            'observaciones' => $validated['observaciones'] ?? 'Reagendado automáticamente',
+                            'created_by' => Auth::id(),
+                        ]);
+
+                        $agendados++;
+                        Log::info("Unidad {$unidadId} tenía agendamiento vencido, se reagendó automáticamente");
+                    } else {
+                        $omitidos++;
+                        Log::info("Unidad {$unidadId} ya tiene agendamiento pendiente para {$existente->fecha_agendada}");
+                    }
                     continue;
                 }
 
+                // Verificar si tiene agendamiento no_cumplido (vencido)
+                $vencido = AgendamientoMantenimiento::where('unidad_id', $unidadId)
+                    ->where('estado', 'no_cumplido')
+                    ->first();
+
+                if ($vencido) {
+                    // Si tiene no_cumplido y tiene fecha reprogramada, usar esa
+                    if ($vencido->fecha_reprogramada) {
+                        AgendamientoMantenimiento::create([
+                            'unidad_id' => $unidadId,
+                            'fecha_agendada' => $vencido->fecha_reprogramada,
+                            'estado' => 'pendiente',
+                            'observaciones' => 'Reprogramado desde estado no_cumplido',
+                            'created_by' => Auth::id(),
+                        ]);
+
+                        $vencido->update(['estado' => 'reagendado']);
+                        $agendados++;
+                    } else {
+                        // Crear nuevo agendamiento normal
+                        AgendamientoMantenimiento::create([
+                            'unidad_id' => $unidadId,
+                            'fecha_agendada' => $validated['fecha_agendada'],
+                            'estado' => 'pendiente',
+                            'observaciones' => $validated['observaciones'] ?? 'Agendamiento masivo',
+                            'created_by' => Auth::id(),
+                        ]);
+                        $agendados++;
+                    }
+                    continue;
+                }
+
+                // Crear nuevo agendamiento
                 AgendamientoMantenimiento::create([
                     'unidad_id' => $unidadId,
                     'fecha_agendada' => $validated['fecha_agendada'],
@@ -270,12 +406,8 @@ class MantenimientoDashboardController extends Controller
 
             Log::info('Resultado: ' . $mensaje);
 
-            // 🔥 REDIRIGIR EN LUGAR DE RESPONDER JSON
             return redirect()->route('admin.mantenimiento.dashboard')
                 ->with('success', $mensaje);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Error de validacion: ' . json_encode($e->errors()));
-            return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error('Error al agendar: ' . $e->getMessage());
             Log::error($e->getTraceAsString());

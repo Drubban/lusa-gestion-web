@@ -53,73 +53,19 @@
         position: relative;
     }
 
-    /* Estilos para el buscador */
-    .search-container {
-        background: white;
+    .filter-card {
+        background: #f8f9fa;
         border-radius: 1rem;
-        padding: 0.75rem 1.25rem;
-        border: 1px solid #e9ecef;
-        margin-bottom: 1rem;
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        flex-wrap: wrap;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    .search-container .search-icon {
-        color: #6c757d;
-        font-size: 1.1rem;
+    .reporte-card {
+        border-left: 4px solid #dc3545;
     }
 
-    .search-container .search-input {
-        flex: 1;
-        min-width: 200px;
-        border: none;
-        outline: none;
-        padding: 0.4rem 0;
-        font-size: 0.9rem;
-        background: transparent;
-    }
-
-    .search-container .search-input:focus {
-        border-bottom: 2px solid #0d6efd;
-    }
-
-    .search-container .search-input::placeholder {
-        color: #adb5bd;
-    }
-
-    .search-container .search-badge {
-        background: #e9ecef;
-        padding: 0.2rem 0.75rem;
-        border-radius: 50px;
-        font-size: 0.75rem;
-        color: #6c757d;
-    }
-
-    .search-container .search-clear {
-        cursor: pointer;
-        color: #6c757d;
-        padding: 0 0.5rem;
-        display: none;
-    }
-
-    .search-container .search-clear:hover {
-        color: #dc3545;
-    }
-
-    .search-container .search-clear.visible {
-        display: inline;
-    }
-
-    @media (max-width: 576px) {
-        .search-container {
-            flex-direction: column;
-            align-items: stretch;
-        }
-        .search-container .search-input {
-            min-width: unset;
-        }
+    .reporte-hoy-card {
+        border-left: 4px solid #fd7e14;
     }
 </style>
 
@@ -163,6 +109,269 @@
             </a>
         </div>
     </div>
+
+    <!-- FILTROS -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-header bg-white fw-bold">
+            <i class="fas fa-filter me-2"></i>Filtros
+        </div>
+        <div class="card-body">
+            <form method="GET" action="{{ route('admin.mantenimiento.dashboard') }}" class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="Reciente" {{ request('estado') == 'Reciente' ? 'selected' : '' }}>Reciente</option>
+                        <option value="Atencion media" {{ request('estado') == 'Atencion media' ? 'selected' : '' }}>Atencion media</option>
+                        <option value="Requiere atencion" {{ request('estado') == 'Requiere atencion' ? 'selected' : '' }}>Requiere atencion</option>
+                        <option value="Atencion urgente" {{ request('estado') == 'Atencion urgente' ? 'selected' : '' }}>Atencion urgente</option>
+                        <option value="Sin mantenimiento" {{ request('estado') == 'Sin mantenimiento' ? 'selected' : '' }}>Sin mantenimiento</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Zona</label>
+                    <select name="zona" class="form-select">
+                        <option value="">Todas</option>
+                        <option value="reyes" {{ request('zona') == 'reyes' ? 'selected' : '' }}>Reyes</option>
+                        <option value="apaxco" {{ request('zona') == 'apaxco' ? 'selected' : '' }}>Apaxco</option>
+                        <option value="citrus" {{ request('zona') == 'citrus' ? 'selected' : '' }}>Citrus</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-semibold">Agendamiento</label>
+                    <select name="agendamiento" class="form-select">
+                        <option value="">Todos</option>
+                        <option value="con" {{ request('agendamiento') == 'con' ? 'selected' : '' }}>Con agendamiento</option>
+                        <option value="sin" {{ request('agendamiento') == 'sin' ? 'selected' : '' }}>Sin agendamiento</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold">Buscar</label>
+                    <input type="text" name="search" class="form-control" placeholder="Unidad, operador..." value="{{ request('search') }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary rounded-pill px-4">
+                        <i class="fas fa-filter me-2"></i>Filtrar
+                    </button>
+                    <a href="{{ route('admin.mantenimiento.dashboard') }}" class="btn btn-secondary rounded-pill px-4">
+                        <i class="fas fa-undo me-2"></i>Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- REPORTE DE UNIDADES NO PRESENTADAS HOY -->
+    <!-- ============================================ -->
+    @php
+        // Unidades con agendamiento para hoy y que NO han sido revisadas
+        $hoy = Carbon\Carbon::today()->toDateString();
+        $noPresentadasHoy = array_filter($dashboard, function($item) use ($hoy) {
+            return $item['agendamiento'] && 
+                   $item['fecha_agendada'] && 
+                   $item['fecha_agendada']->format('Y-m-d') === $hoy &&
+                   $item['estado'] !== 'Reciente';
+        });
+        $totalNoPresentadasHoy = count($noPresentadasHoy);
+    @endphp
+
+    @if($totalNoPresentadasHoy > 0)
+    <div class="card shadow-sm border-0 rounded-4 mb-4 reporte-hoy-card">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-calendar-times me-2 text-warning"></i>Unidades No Presentadas HOY</span>
+            <span class="badge bg-warning text-dark">{{ $totalNoPresentadasHoy }} unidades</span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                Estas unidades tenían agendamiento para hoy y no han sido revisadas. 
+                <strong>Reporta la no presentación</strong> para reprogramar su mantenimiento.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Unidad</th>
+                            <th>Zona</th>
+                            <th>Fecha Agendada</th>
+                            <th>Estado Actual</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($noPresentadasHoy as $item)
+                        <tr>
+                            <td><strong>{{ $item['unidad']->numero_economico }}</strong></td>
+                            <td>{{ ucfirst($item['unidad']->zona->nombre ?? 'N/A') }}</td>
+                            <td><span class="badge bg-warning text-dark">{{ $item['fecha_agendada']->format('d/m/Y') }}</span></td>
+                            <td><span class="badge bg-{{ $item['color'] }}">{{ $item['estado'] }}</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#reportarHoyModal{{ $item['unidad']->id }}">
+                                    <i class="fas fa-flag me-1"></i>Reportar No Presentado
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Modal para Reportar No Presentado HOY -->
+                        <div class="modal fade" id="reportarHoyModal{{ $item['unidad']->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ route('admin.agendamientos.store') }}">
+                                        @csrf
+                                        <input type="hidden" name="unidad_id" value="{{ $item['unidad']->id }}">
+                                        <input type="hidden" name="fecha_agendada" value="{{ $item['fecha_agendada']->format('Y-m-d') }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Reportar Unidad No Presentada - HOY</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong>Unidad {{ $item['unidad']->numero_economico }}</strong>
+                                                <br>Tenía agendamiento para hoy {{ $item['fecha_agendada']->format('d/m/Y') }}
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Motivo de no presentación *</label>
+                                                <select name="motivo_no_presentado" class="form-select" required>
+                                                    <option value="">Seleccione un motivo...</option>
+                                                    <option value="taller">En taller</option>
+                                                    <option value="averia">Averia mecanica</option>
+                                                    <option value="falta_operador">Falta de operador</option>
+                                                    <option value="documentacion">Falta de documentacion</option>
+                                                    <option value="cliente">Unidad en ruta con cliente</option>
+                                                    <option value="otros">Otro motivo</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Observaciones</label>
+                                                <textarea name="observaciones" class="form-control" rows="2" placeholder="Detalles adicionales..."></textarea>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Nueva Fecha de Agendamiento</label>
+                                                <input type="date" name="fecha_reprogramada" class="form-control" value="{{ date('Y-m-d', strtotime('+7 days')) }}">
+                                                <small class="text-muted">Se recomienda agendar con al menos 7 días de anticipación</small>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-danger">Guardar Reporte y Reprogramar</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @else
+    <div class="card shadow-sm border-0 rounded-4 mb-4 reporte-hoy-card">
+        <div class="card-header bg-white fw-bold">
+            <i class="fas fa-calendar-check me-2 text-success"></i>Unidades No Presentadas HOY
+        </div>
+        <div class="card-body">
+            <div class="text-center text-success py-3">
+                <i class="fas fa-check-circle fa-3x mb-2 d-block"></i>
+                <h5>Todas las unidades programadas para hoy se presentaron</h5>
+                <p class="text-muted">No hay reportes de no presentación pendientes</p>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- ============================================ -->
+    <!-- REPORTE DE UNIDADES VENCIDAS (más de 21 días) -->
+    <!-- ============================================ -->
+    @php
+        $noPresentadas = array_filter($dashboard, function($item) {
+            return $item['estado'] === 'Atencion urgente' &&
+                   $item['dias_desde'] !== null &&
+                   $item['dias_desde'] > 21;
+        });
+        $totalNoPresentadas = count($noPresentadas);
+    @endphp
+
+    @if($totalNoPresentadas > 0)
+    <div class="card shadow-sm border-0 rounded-4 mb-4 reporte-card">
+        <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-exclamation-triangle me-2 text-danger"></i>Unidades con Mantenimiento Vencido (+21 días)</span>
+            <span class="badge bg-danger">{{ $totalNoPresentadas }} unidades</span>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                Estas unidades tienen más de 21 días sin mantenimiento. 
+                <strong>Requieren atención urgente</strong>.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th>Unidad</th>
+                            <th>Zona</th>
+                            <th>Ultimo Mantenimiento</th>
+                            <th>Dias</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($noPresentadas as $item)
+                        <tr>
+                            <td><strong>{{ $item['unidad']->numero_economico }}</strong></td>
+                            <td>{{ ucfirst($item['unidad']->zona->nombre ?? 'N/A') }}</td>
+                            <td>{{ $item['ultimo_mantenimiento'] ? Carbon\Carbon::parse($item['ultimo_mantenimiento']->fecha)->format('d/m/Y') : 'Sin registro' }}</td>
+                            <td><span class="badge bg-danger">{{ $item['dias_desde'] }} dias</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#reportarModal{{ $item['unidad']->id }}">
+                                    <i class="fas fa-calendar-plus me-1"></i>Agendar Mantenimiento
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Modal para Agendar Mantenimiento -->
+                        <div class="modal fade" id="reportarModal{{ $item['unidad']->id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form method="POST" action="{{ route('admin.mantenimiento.agendar-masivo') }}">
+                                        @csrf
+                                        <input type="hidden" name="unidades[]" value="{{ $item['unidad']->id }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Agendar Mantenimiento - {{ $item['unidad']->numero_economico }}</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="alert alert-danger">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong>{{ $item['dias_desde'] }} días sin mantenimiento</strong>
+                                                <br>La unidad requiere atención urgente.
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Fecha de Agendamiento *</label>
+                                                <input type="date" name="fecha_agendada" class="form-control" value="{{ date('Y-m-d', strtotime('+7 days')) }}" required>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label fw-semibold">Observaciones</label>
+                                                <textarea name="observaciones" class="form-control" rows="2">Mantenimiento urgente - Unidad vencida</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <button type="submit" class="btn btn-danger">Agendar Mantenimiento</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    @endif
 
     <!-- Tarjetas de estadisticas -->
     <div class="row mb-4">
@@ -295,7 +504,7 @@
         </div>
     </div>
 
-    <!-- TABLA DE UNIDADES CON BUSCADOR -->
+    <!-- TABLA DE UNIDADES -->
     <div class="card shadow-sm border-0 rounded-4">
         <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
             <span><i class="fas fa-list me-2"></i>Lista de Unidades</span>
@@ -304,19 +513,6 @@
             </div>
         </div>
         <div class="card-body">
-            <!-- BUSCADOR -->
-            <div class="search-container">
-                <span class="search-icon"><i class="fas fa-search"></i></span>
-                <input type="text" class="search-input" id="searchUnidades"
-                       placeholder="Buscar por unidad, zona, operador, estado..."
-                       autocomplete="off">
-                <span class="search-badge" id="resultadosCount">{{ count($dashboard) }} resultados</span>
-                <span class="search-clear" id="searchClear" title="Limpiar busqueda">
-                    <i class="fas fa-times-circle"></i>
-                </span>
-            </div>
-
-            <!-- Tabla -->
             <div class="table-responsive">
                 <table class="table table-hover align-middle mb-0" id="tablaUnidades">
                     <thead class="bg-light">
@@ -435,16 +631,14 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // ============================================
-        // GRAFICOS CON COLORES MEJORADOS
-        // ============================================
+        // GRAFICOS
         const estadosData = @json($estadosData);
         const zonasData = @json($zonasData);
         const tendenciaData = @json($tendenciaAgendamientos);
 
         const coloresZona = ['#0d6efd', '#198754', '#ffc107', '#dc3545', '#6f42c1', '#fd7e14'];
 
-        // Grafico 1: ESTADOS DE MANTENIMIENTO (Dona) - COLORES MEJORADOS
+        // Grafico 1: ESTADOS DE MANTENIMIENTO
         new Chart(document.getElementById('estadosChart'), {
             type: 'doughnut',
             data: {
@@ -452,11 +646,7 @@
                 datasets: [{
                     data: Object.values(estadosData),
                     backgroundColor: [
-                        '#198754',  // Reciente - Verde
-                        '#ffc107',  // Atencion media - Amarillo
-                        '#fd7e14',  // Requiere atencion - Naranja
-                        '#dc3545',  // Atencion urgente - Rojo
-                        '#6f42c1'   // Sin mantenimiento - Purpura
+                        '#198754', '#ffc107', '#fd7e14', '#dc3545', '#6f42c1'
                     ],
                     borderWidth: 2,
                     borderColor: '#ffffff'
@@ -471,7 +661,10 @@
                         labels: {
                             boxWidth: 14,
                             padding: 12,
-                            font: { size: 12, weight: '500' },
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            },
                             usePointStyle: true,
                             pointStyle: 'circle'
                         }
@@ -481,7 +674,7 @@
             }
         });
 
-        // Grafico 2: ZONAS (Barras)
+        // Grafico 2: ZONAS
         new Chart(document.getElementById('zonasChart'), {
             type: 'bar',
             data: {
@@ -499,16 +692,20 @@
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { stepSize: 1 }
+                        ticks: {
+                            stepSize: 1
+                        }
                     }
                 },
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: false
+                    }
                 }
             }
         });
 
-        // Grafico 3: TENDENCIA (Linea)
+        // Grafico 3: TENDENCIA
         new Chart(document.getElementById('tendenciaChart'), {
             type: 'line',
             data: {
@@ -530,14 +727,14 @@
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }
+                    legend: {
+                        display: false
+                    }
                 }
             }
         });
 
-        // ============================================
         // CHECKBOXES
-        // ============================================
         const checkboxes = document.querySelectorAll('.checkbox-unidad');
         const selectAll = document.getElementById('selectAll');
         const contador = document.getElementById('contadorSeleccionados');
@@ -592,9 +789,7 @@
             actualizarContador();
         });
 
-        // ============================================
-        // ENVIO DEL FORMULARIO - METODO TRADICIONAL
-        // ============================================
+        // ENVIO DEL FORMULARIO
         form.addEventListener('submit', function(e) {
             container.innerHTML = '';
 
@@ -613,52 +808,6 @@
                 input.value = cb.value;
                 container.appendChild(input);
             });
-        });
-
-        // ============================================
-        // BUSCADOR MEJORADO
-        // ============================================
-        const searchInput = document.getElementById('searchUnidades');
-        const tableRows = document.querySelectorAll('#tablaUnidades tbody tr');
-        const resultadosCount = document.getElementById('resultadosCount');
-        const searchClear = document.getElementById('searchClear');
-
-        function filtrarTabla() {
-            const search = searchInput.value.toLowerCase().trim();
-            let visibles = 0;
-
-            tableRows.forEach(row => {
-                // Saltar fila de "no hay datos"
-                if (row.querySelector('td[colspan]')) {
-                    row.style.display = '';
-                    return;
-                }
-
-                const text = row.textContent.toLowerCase();
-                const match = text.includes(search);
-                row.style.display = match ? '' : 'none';
-                if (match) visibles++;
-            });
-
-            // Actualizar contador
-            resultadosCount.textContent = visibles + ' resultados';
-
-            // Mostrar/ocultar boton de limpiar
-            if (search.length > 0) {
-                searchClear.classList.add('visible');
-            } else {
-                searchClear.classList.remove('visible');
-            }
-        }
-
-        // Evento de busqueda
-        searchInput.addEventListener('keyup', filtrarTabla);
-
-        // Limpiar busqueda
-        searchClear.addEventListener('click', function() {
-            searchInput.value = '';
-            filtrarTabla();
-            searchInput.focus();
         });
 
         actualizarContador();

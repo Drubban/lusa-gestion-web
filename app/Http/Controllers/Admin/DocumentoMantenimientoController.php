@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AsignacionOperadorUnidad;
 use App\Models\DocumentoMantenimiento;
+use App\Models\AgendamientoMantenimiento;
 use App\Models\Unidad;
 use App\Services\DocumentoService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -44,13 +45,11 @@ class DocumentoMantenimientoController extends Controller
 
     public function create(Request $request)
     {
-        // Obtener todas las unidades activas con su zona
         $unidades = Unidad::with(['zona'])
             ->where('activo', true)
             ->orderBy('numero_economico')
             ->get();
 
-        // Si viene una unidad por parámetro, usarla para pre-seleccionar
         $unidadSeleccionada = null;
         if ($request->has('unidad')) {
             $unidadSeleccionada = Unidad::with(['zona', 'asignacionVigente.operador'])
@@ -79,18 +78,14 @@ class DocumentoMantenimientoController extends Controller
                 'comentarios' => 'nullable|string',
                 'fecha' => 'required|date',
                 'hora' => 'required',
-                // 🔥 ELIMINAR LA VALIDACION DE 'vigente' porque la manejamos manualmente
             ]);
 
-            // Obtener la unidad
             $unidad = Unidad::with('zona')->findOrFail($validated['unidad_id']);
 
-            // Buscar la asignacion vigente de la unidad (para obtener el operador)
             $asignacion = AsignacionOperadorUnidad::where('unidad_id', $validated['unidad_id'])
                 ->where('vigente', true)
                 ->first();
 
-            // Si no hay asignacion, crear una temporal
             if (!$asignacion) {
                 $asignacion = AsignacionOperadorUnidad::create([
                     'unidad_id' => $validated['unidad_id'],
@@ -100,10 +95,8 @@ class DocumentoMantenimientoController extends Controller
                 ]);
             }
 
-            // Construir el string de tecnologias
             $tecnologias = implode(',', $validated['tecnologia']);
 
-            // Construir estado de camaras
             $camaras = [];
             if ($request->has('camara1')) $camaras[] = 'Camara 1 OK';
             if ($request->has('camara2')) $camaras[] = 'Camara 2 OK';
@@ -111,7 +104,6 @@ class DocumentoMantenimientoController extends Controller
             if ($request->has('camara4')) $camaras[] = 'Camara 4 OK';
             $estadoCamaras = !empty($camaras) ? implode(', ', $camaras) : 'Sin camaras funcionales';
 
-            // 🔥 MANEJAR VIGENTE MANUALMENTE - Convertir 'on' a true/false
             $vigente = $request->has('vigente') && $request->input('vigente') !== 'off';
 
             $documento = DocumentoMantenimiento::create([
@@ -126,20 +118,44 @@ class DocumentoMantenimientoController extends Controller
                 'vigente' => $vigente,
             ]);
 
-            Log::info('✅ Documento de mantenimiento creado con ID: ' . $documento->id . ' - Vigente: ' . ($vigente ? 'SI' : 'NO'));
+            Log::info('Documento de mantenimiento creado con ID: ' . $documento->id);
+
+            // FINALIZAR AGENDAMIENTOS PENDIENTES DE LA UNIDAD
+            $this->finalizarAgendamientosUnidad($validated['unidad_id']);
 
             return redirect()->route('admin.documentos-mantenimiento.index')
                 ->with('success', 'Documento de mantenimiento creado exitosamente.');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('❌ Error de validacion: ' . json_encode($e->errors()));
+            Log::error('Error de validacion: ' . json_encode($e->errors()));
             throw $e;
         } catch (\Exception $e) {
-            Log::error('❌ Error al crear documento de mantenimiento: ' . $e->getMessage());
+            Log::error('Error al crear documento de mantenimiento: ' . $e->getMessage());
             Log::error($e->getTraceAsString());
 
             return back()->withErrors(['error' => 'Error al crear el documento: ' . $e->getMessage()])
                 ->withInput();
         }
+    }
+
+    /**
+     * Finalizar agendamientos pendientes de una unidad al registrar mantenimiento
+     */
+    private function finalizarAgendamientosUnidad($unidadId)
+    {
+        $agendamientos = AgendamientoMantenimiento::where('unidad_id', $unidadId)
+            ->where('estado', 'pendiente')
+            ->get();
+
+        foreach ($agendamientos as $agendamiento) {
+            $agendamiento->update([
+                'estado' => 'cumplido',
+                'fecha_cumplimiento' => now()->toDateString(),
+                'observaciones' => ($agendamiento->observaciones ?? '') . ' - Finalizado automaticamente al registrar mantenimiento',
+            ]);
+            Log::info("Agendamiento ID: {$agendamiento->id} finalizado automaticamente");
+        }
+
+        return count($agendamientos);
     }
 
     public function edit($id)
@@ -149,7 +165,6 @@ class DocumentoMantenimientoController extends Controller
             ->where('vigente', true)
             ->get();
 
-        // Convertir tecnología guardada (string) a array para los checkboxes
         $tecnologiaArray = explode(',', $documento->tecnologia_reportada ?? '');
 
         return view('admin.documentos.mantenimiento.edit', compact('documento', 'asignaciones', 'tecnologiaArray'));
@@ -241,7 +256,7 @@ class DocumentoMantenimientoController extends Controller
         $section->addText("Rol: {$documento->rol}");
         $section->addText("Operador: {$documento->asignacion->operador->nombre_completo}");
         $section->addText("Clave: {$documento->asignacion->operador->clave_operador}");
-        $section->addText("Tecnología reportada: {$documento->tecnologia_reportada}");
+        $section->addText("Tecnologia reportada: {$documento->tecnologia_reportada}");
         $section->addText("Prueba barras: {$documento->prueba_barras}");
         $section->addText("Comentarios: {$documento->comentarios}");
         $section->addText("Fecha: {$documento->fecha} Hora: {$documento->hora}");
@@ -253,7 +268,7 @@ class DocumentoMantenimientoController extends Controller
         $section->addText('______________________');
         $section->addText('Firma del Ing. a cargo', ['size' => 8]);
         $section->addText('______________________');
-        $section->addText('Firma de tabulación', ['size' => 8]);
+        $section->addText('Firma de tabulacion', ['size' => 8]);
 
         $tempFile = tempnam(sys_get_temp_dir(), 'word_');
         $objWriter = IOFactory::createWriter($phpWord, 'Word2007');

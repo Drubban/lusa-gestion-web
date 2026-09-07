@@ -31,7 +31,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::resource('ajustes', AjusteController::class);
     Route::resource('tecnologias', TecnologiaController::class);
 
-    // 🔥 RUTAS DE AGENDAMIENTOS - AGREGAR ESTAS
     Route::resource('agendamientos', AgendamientoMantenimientoController::class);
     Route::get('agendamientos/{id}/marcar-cumplido', [AgendamientoMantenimientoController::class, 'marcarCumplido'])->name('agendamientos.marcar-cumplido');
     Route::post('agendamientos/{id}/reagendar', [AgendamientoMantenimientoController::class, 'reagendar'])->name('agendamientos.reagendar');
