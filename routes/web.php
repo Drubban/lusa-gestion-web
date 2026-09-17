@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\MantenimientoDashboardController;
 use App\Http\Controllers\Admin\TecnologiaController;
 use App\Http\Controllers\Admin\AgendamientoMantenimientoController;
 use App\Http\Controllers\Admin\ExportacionMantenimientoController;
+use App\Http\Controllers\Admin\RevisionOptocontrolController;
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -90,6 +91,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/todos', [ExportacionMantenimientoController::class, 'exportarTodos'])->name('todos');
     });
 
+    Route::prefix('revisiones-optocontrol')->name('revisiones-optocontrol.')->group(function () {
+        Route::get('/', [RevisionOptocontrolController::class, 'index'])->name('index');
+        Route::get('/dashboard', [RevisionOptocontrolController::class, 'dashboard'])->name('dashboard');
+        Route::get('/create', [RevisionOptocontrolController::class, 'create'])->name('create');
+        Route::post('/', [RevisionOptocontrolController::class, 'store'])->name('store');
+
+        // AJAX (debe ir antes del {id})
+        Route::get('/unidad-data/{id}', [RevisionOptocontrolController::class, 'getUnidadData'])->name('unidad-data');
+
+        Route::get('/{id}', [RevisionOptocontrolController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [RevisionOptocontrolController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [RevisionOptocontrolController::class, 'update'])->name('update');
+        Route::delete('/{id}', [RevisionOptocontrolController::class, 'destroy'])->name('destroy');
+    });
 });
 
 // Ruta pública para ver PDFs (sin autenticación, si es necesario)

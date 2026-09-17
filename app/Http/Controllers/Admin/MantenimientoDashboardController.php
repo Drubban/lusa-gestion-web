@@ -25,13 +25,6 @@ class MantenimientoDashboardController extends Controller
             'tecnologias'
         ])->where('activo', true);
 
-        // Filtro por estado
-        if ($request->filled('estado')) {
-            $estado = $request->estado;
-            // Los estados se calculan después, no se pueden filtrar en la consulta
-            // Lo manejaremos en PHP después de obtener los datos
-        }
-
         // Filtro por zona
         if ($request->filled('zona')) {
             $query->whereHas('zona', function ($q) use ($request) {
@@ -51,13 +44,10 @@ class MantenimientoDashboardController extends Controller
             });
         }
 
-        // Obtener las unidades con sus relaciones en una sola consulta
         $unidades = $query->orderBy('numero_economico')->get();
-
-        // Obtener IDs de unidades para consultas masivas
         $unidadIds = $unidades->pluck('id')->toArray();
 
-        // Obtener TODOS los últimos mantenimientos en UNA consulta
+        // Ultimos mantenimientos
         $ultimosMantenimientos = DocumentoMantenimiento::whereHas('asignacion', function ($q) use ($unidadIds) {
             $q->whereIn('unidad_id', $unidadIds);
         })
@@ -69,13 +59,13 @@ class MantenimientoDashboardController extends Controller
                 return $group->first();
             });
 
-        // Obtener TODOS los agendamientos pendientes en UNA consulta
+        // Agendamientos pendientes
         $agendamientosPendientes = AgendamientoMantenimiento::whereIn('unidad_id', $unidadIds)
             ->where('estado', 'pendiente')
             ->get()
             ->keyBy('unidad_id');
 
-        // Obtener TODAS las tecnologías en UNA consulta
+        // Tecnologias
         $tecnologiasPorUnidad = Tecnologia::whereIn('unidad_id', $unidadIds)
             ->get()
             ->groupBy('unidad_id')
@@ -174,8 +164,6 @@ class MantenimientoDashboardController extends Controller
 
                 if ($diasRestantes < 0) {
                     $vencidos++;
-                } elseif ($diasRestantes <= 7) {
-                    $aTiempo++;
                 } else {
                     $aTiempo++;
                 }
@@ -199,33 +187,86 @@ class MantenimientoDashboardController extends Controller
             ];
         }
 
-        // Aplicar filtro de agendamiento (con/sin)
+        // Aplicar filtro de agendamiento
         if ($request->filled('agendamiento')) {
             if ($request->agendamiento === 'con') {
-                $dashboard = array_filter($dashboard, function ($item) {
-                    return $item['agendamiento'] !== null;
-                });
+                $dashboard = array_filter($dashboard, fn($item) => $item['agendamiento'] !== null);
             } elseif ($request->agendamiento === 'sin') {
-                $dashboard = array_filter($dashboard, function ($item) {
-                    return $item['agendamiento'] === null;
-                });
+                $dashboard = array_filter($dashboard, fn($item) => $item['agendamiento'] === null);
             }
         }
 
-        // Aplicar filtro de estado (después de calcular)
+        // Aplicar filtro de estado
         if ($request->filled('estado') && $request->estado !== '') {
             $estadoFiltro = $request->estado;
-            $dashboard = array_filter($dashboard, function ($item) use ($estadoFiltro) {
-                return $item['estado'] === $estadoFiltro;
-            });
+            $dashboard = array_filter($dashboard, fn($item) => $item['estado'] === $estadoFiltro);
         }
 
-        // Re-indexar array
         $dashboard = array_values($dashboard);
+
+        // ============================================================
+        // UNIDADES NO PRESENTADAS - CON FILTRO DE FECHAS
+        // ============================================================
+        // Rango de fechas para el reporte de no presentadas
+        $fechaNoPresentadasDesde = $request->filled('np_desde')
+            ? Carbon::parse($request->np_desde)->startOfDay()
+            : Carbon::today()->startOfDay();
+
+        $fechaNoPresentadasHasta = $request->filled('np_hasta')
+            ? Carbon::parse($request->np_hasta)->endOfDay()
+            : Carbon::today()->endOfDay();
+
+        // Modo de vista: 'rango' o 'especifico'
+        $modoNoPresentadas = $request->get('np_modo', 'hoy');
+
+        // Consulta de agendamientos no cumplidos en el rango seleccionado
+        $noPresentadasQuery = AgendamientoMantenimiento::with(['unidad.zona', 'unidad.asignacionVigente.operador'])
+            ->where(function ($q) use ($fechaNoPresentadasDesde, $fechaNoPresentadasHasta, $modoNoPresentadas) {
+
+                if ($modoNoPresentadas === 'hoy') {
+                    // Solo HOY y que aun no se hayan revisado
+                    $q->whereDate('fecha_agendada', Carbon::today());
+                } elseif ($modoNoPresentadas === 'rango') {
+                    // Rango de fechas
+                    $q->whereDate('fecha_agendada', '>=', $fechaNoPresentadasDesde)
+                        ->whereDate('fecha_agendada', '<=', $fechaNoPresentadasHasta);
+                } elseif ($modoNoPresentadas === 'vencidos') {
+                    // Solo vencidos (fecha agendada < hoy)
+                    $q->whereDate('fecha_agendada', '<', Carbon::today());
+                } else {
+                    $q->whereDate('fecha_agendada', Carbon::today());
+                }
+            })
+            ->whereIn('estado', ['pendiente', 'no_cumplido']);
+
+        // Si es "hoy", excluir las que ya se presentaron (Reciente)
+        if ($modoNoPresentadas === 'hoy') {
+            $unidadesRecientes = collect($dashboard)
+                ->filter(fn($item) => $item['estado'] === 'Reciente')
+                ->pluck('unidad.id')
+                ->toArray();
+
+            if (!empty($unidadesRecientes)) {
+                $noPresentadasQuery->whereNotIn('unidad_id', $unidadesRecientes);
+            }
+        }
+
+        $noPresentadas = $noPresentadasQuery->orderBy('fecha_agendada', 'desc')->get();
+
+        // Contadores
+        $totalNoPresentadasHoy = $noPresentadas->filter(function ($item) {
+            return $item->fecha_agendada && Carbon::parse($item->fecha_agendada)->isToday();
+        })->count();
+
+        $totalNoPresentadasVencidas = $noPresentadas->filter(function ($item) {
+            return $item->fecha_agendada && Carbon::parse($item->fecha_agendada)->isPast()
+                && !Carbon::parse($item->fecha_agendada)->isToday();
+        })->count();
+
+        $totalNoPresentadas = $noPresentadas->count();
 
         // Estadísticas
         $totalDashboard = count($dashboard);
-
         $porcentajeConMantenimiento = $totalUnidades > 0 ? round(($conMantenimiento / $totalUnidades) * 100, 1) : 0;
         $porcentajeSinMantenimiento = $totalUnidades > 0 ? round(($sinMantenimiento / $totalUnidades) * 100, 1) : 0;
         $porcentajeVencidos = $totalUnidades > 0 ? round(($vencidos / $totalUnidades) * 100, 1) : 0;
@@ -240,7 +281,6 @@ class MantenimientoDashboardController extends Controller
             'Sin mantenimiento' => $sinMantenimiento,
         ];
 
-        // Zonas - consulta optimizada
         $zonasData = Unidad::where('activo', true)
             ->select('zona_id', DB::raw('count(*) as total'))
             ->groupBy('zona_id')
@@ -252,7 +292,6 @@ class MantenimientoDashboardController extends Controller
             ])
             ->toArray();
 
-        // Tendencia - consulta optimizada
         $tendenciaAgendamientos = AgendamientoMantenimiento::where('created_at', '>=', now()->subDays(6))
             ->select(DB::raw("DATE(created_at) as fecha"), DB::raw("COUNT(*) as total"))
             ->groupBy('fecha')
@@ -280,7 +319,20 @@ class MantenimientoDashboardController extends Controller
             'porcentaje_urgentes' => $porcentajeUrgentes,
         ];
 
-        return view('admin.mantenimiento.dashboard', compact('dashboard', 'stats', 'estadosData', 'zonasData', 'tendenciaAgendamientos'));
+        return view('admin.mantenimiento.dashboard', compact(
+            'dashboard',
+            'stats',
+            'estadosData',
+            'zonasData',
+            'tendenciaAgendamientos',
+            'noPresentadas',
+            'totalNoPresentadasHoy',
+            'totalNoPresentadasVencidas',
+            'totalNoPresentadas',
+            'fechaNoPresentadasDesde',
+            'fechaNoPresentadasHasta',
+            'modoNoPresentadas'
+        ));
     }
 
     public function show($id)

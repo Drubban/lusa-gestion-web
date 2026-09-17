@@ -3,13 +3,16 @@
     <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
         <h1 class="h3">Detalle de Documento de Mantenimiento</h1>
         <div>
-            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-pdf', $documento)); ?>" class="btn btn-primary rounded-pill px-4">
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-pdf', $documento)); ?>"
+               class="btn btn-primary rounded-pill px-4">
                 <i class="fas fa-file-pdf"></i> Exportar PDF
             </a>
-            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-word', $documento)); ?>" class="btn btn-secondary rounded-pill px-4">
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.exportar-word', $documento)); ?>"
+               class="btn btn-secondary rounded-pill px-4">
                 <i class="fas fa-file-word"></i> Exportar Word
             </a>
-            <a href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>" class="btn btn-secondary rounded-pill px-4">Volver</a>
+            <a href="<?php echo e(route('admin.documentos-mantenimiento.index')); ?>"
+               class="btn btn-secondary rounded-pill px-4">Volver</a>
         </div>
     </div>
 
@@ -29,11 +32,11 @@
                         </div>
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Operador:</strong></div>
-                            <p><?php echo e($documento->asignacion->operador->nombre_completo); ?></p>
+                            <p><?php echo e($documento->asignacion->operador->nombre_completo ?? 'Sin operador'); ?></p>
                         </div>
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Clave operador:</strong></div>
-                            <p><?php echo e($documento->asignacion->operador->clave_operador); ?></p>
+                            <p><?php echo e($documento->asignacion->operador->clave_operador ?? 'N/A'); ?></p>
                         </div>
                         <div class="col-md-6">
                             <div class="border-bottom pb-1 mb-2"><strong>Tecnología reportada:</strong></div>
@@ -80,7 +83,8 @@
                     <div class="mb-4">
                         <strong>Firma del operador:</strong>
                         <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,<?php echo e($documento->firma_operador); ?>" style="max-width: 100%; max-height: 120px;" alt="Firma operador">
+                            <img src="data:image/png;base64,<?php echo e($documento->firma_operador); ?>"
+                                 style="max-width: 100%; max-height: 120px;" alt="Firma operador">
                         </div>
                     </div>
                     <?php endif; ?>
@@ -89,7 +93,8 @@
                     <div class="mb-4">
                         <strong>Firma del Ing. a cargo:</strong>
                         <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,<?php echo e($documento->firma_ing); ?>" style="max-width: 100%; max-height: 120px;" alt="Firma Ing.">
+                            <img src="data:image/png;base64,<?php echo e($documento->firma_ing); ?>"
+                                 style="max-width: 100%; max-height: 120px;" alt="Firma Ing.">
                         </div>
                     </div>
                     <?php endif; ?>
@@ -98,20 +103,36 @@
                     <div class="mb-4">
                         <strong>Firma de tabulación:</strong>
                         <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,<?php echo e($documento->firma_tabulacion); ?>" style="max-width: 100%; max-height: 120px;" alt="Firma tabulación">
+                            <img src="data:image/png;base64,<?php echo e($documento->firma_tabulacion); ?>"
+                                 style="max-width: 100%; max-height: 120px;" alt="Firma tabulación">
                         </div>
                     </div>
+                    <?php endif; ?>
+
+                    <?php if(!$documento->firma_operador && !$documento->firma_ing && !$documento->firma_tabulacion): ?>
+                        <p class="text-muted text-center">Sin firmas registradas</p>
                     <?php endif; ?>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Vista previa del formato (opcional) -->
+    
     <div class="card shadow-sm border-0 rounded-4 mt-2">
-        <div class="card-header bg-white fw-semibold">Vista previa del documento</div>
-        <div class="card-body p-4 bg-light" style="font-size: 14px;">
-            <?php echo $__env->make('admin.documentos.plantilla_mantenimiento', ['documento' => $documento], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
+            <span>Vista previa del documento</span>
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#previewCollapse">
+                <i class="fas fa-eye"></i> Mostrar / Ocultar
+            </button>
+        </div>
+        <div class="collapse" id="previewCollapse">
+            <div class="card-body p-0">
+                <iframe src="<?php echo e(route('admin.documentos-mantenimiento.exportar-pdf', $documento)); ?>"
+                        style="width: 100%; height: 800px; border: 0;"
+                        title="Vista previa del PDF">
+                </iframe>
+            </div>
         </div>
     </div>
 </div>

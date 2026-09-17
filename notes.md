@@ -5,6 +5,7 @@ git push origin Fixeds
 git checkout main 
 git pull origin main
 
+git merge Fixeds
 
 
 ------------------

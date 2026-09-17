@@ -238,9 +238,18 @@ class DocumentoMantenimientoController extends Controller
         $documento = DocumentoMantenimiento::with(['asignacion.unidad.zona', 'asignacion.operador'])
             ->findOrFail($id);
 
-        $pdf = Pdf::loadView('admin.documentos.plantilla_mantenimiento', compact('documento'));
+        Log::info('Exportando PDF del documento ID: ' . $id);
+        Log::info('Ruta de la vista: ' . resource_path('views/admin/documentos/plantilla_mantenimiento.blade.php'));
 
-        return $pdf->download("mantenimiento_{$documento->id}.pdf");
+        $pdf = Pdf::loadView('admin.documentos.plantilla_mantenimiento', compact('documento'))
+            ->setPaper('letter', 'portrait')
+            ->setOptions([
+                'isHtml5ParserEnabled' => true,
+                'isRemoteEnabled' => true,
+                'defaultFont' => 'DejaVu Sans',
+            ]);
+
+        return $pdf->download("mantenimiento_MTO-" . str_pad($documento->id, 6, '0', STR_PAD_LEFT) . ".pdf");
     }
 
     public function exportarWord($id)
