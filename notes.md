@@ -1,11 +1,42 @@
-git add . 
-git commit -m "fix: refactor code for all views"
+# 1. Verificar estado
+git status
+
+# 2. Añadir TODOS los archivos modificados/nuevos
+git add .
+
+# 3. Hacer commit con mensaje descriptivo
+git commit -m "fix: descripción de lo que hiciste"
+
+# 4. Verificar en qué rama estás
+git branch --show-current
+
+# 5. Subir a la rama actual en el remoto
+git push origin NOMBRE_DE_LA_RAMA
+
+# Ejemplo si estás en Fixeds:
 git push origin Fixeds
 
-git checkout main 
+# 6. Subir también los tags (si usas versiones)
+git push --tags origin
+
+
+
+------------------------------------------------------
+------------------------------------------------------
+# 1. Cambiar a main
+git checkout main
+
+# 2. Traer lo último del remoto
 git pull origin main
 
+# 3. Fusionar Fixeds en main
 git merge Fixeds
+
+# 4. Subir main actualizado
+git push origin main
+
+# 5. (Opcional) Volver a Fixeds
+git checkout Fixeds
 
 
 ------------------

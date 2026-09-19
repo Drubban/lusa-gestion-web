@@ -126,7 +126,7 @@ class MantenimientoDashboardController extends Controller
                         $urgentes++;
                     }
 
-                    $proximoMantenimiento = $fechaUltimo->addDays(21)->format('d/m/Y');
+                    $proximoMantenimiento = $fechaUltimo->addDays(45)->format('d/m/Y');
                 } catch (\Exception $e) {
                     $fechaUltimo = Carbon::parse($ultimoMantenimiento->fecha);
                     $diasDesde = $fechaUltimo->diffInDays(now());
@@ -150,7 +150,7 @@ class MantenimientoDashboardController extends Controller
                         $urgentes++;
                     }
 
-                    $proximoMantenimiento = Carbon::parse($ultimoMantenimiento->fecha)->addDays(21)->format('d/m/Y');
+                    $proximoMantenimiento = Carbon::parse($ultimoMantenimiento->fecha)->addDays(45)->format('d/m/Y');
                 }
             } else {
                 $sinMantenimiento++;
