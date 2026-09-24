@@ -9,39 +9,40 @@ class DocumentoCapacitacion extends Model
 {
     use HasFactory;
 
-    // Especificar explícitamente el nombre de la tabla
     protected $table = 'documento_capacitacion';
 
     protected $fillable = [
-        'asignacion_id',
-        'fecha',
-        'hora',
-        'vigente',
-        // Si agregaste estos campos en la migración
-        'unidad_id',
         'operador_id',
+        'unidad_id',
+        'asignacion_id',
+        'tipo_capacitacion',
+        'fecha_capacitacion',
+        'fecha_vencimiento',
+        'instructor',
+        'duracion_horas',
+        'observaciones',
+        'firma_operador',
+        'firma_instructor',
     ];
 
     protected $casts = [
-        'fecha' => 'date',
-        'vigente' => 'boolean',
+        'fecha_capacitacion' => 'date',
+        'fecha_vencimiento' => 'date',
+        'duracion_horas' => 'decimal:2',
     ];
 
-    // Relación con AsignacionOperadorUnidad
-    public function asignacion()
+    public function operador()
     {
-        return $this->belongsTo(AsignacionOperadorUnidad::class, 'asignacion_id');
+        return $this->belongsTo(Operador::class);
     }
 
-    // Relación con Unidad (si la agregaste)
     public function unidad()
     {
         return $this->belongsTo(Unidad::class);
     }
 
-    // Relación con Operador (si lo agregaste)
-    public function operador()
+    public function asignacion()
     {
-        return $this->belongsTo(Operador::class);
+        return $this->belongsTo(AsignacionOperadorUnidad::class, 'asignacion_id');
     }
 }

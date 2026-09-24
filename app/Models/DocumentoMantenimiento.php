@@ -9,10 +9,11 @@ class DocumentoMantenimiento extends Model
 {
     use HasFactory;
 
-    // Especificar explícitamente el nombre de la tabla
     protected $table = 'documento_mantenimiento';
 
     protected $fillable = [
+        'unidad_id',
+        'operador_id',
         'asignacion_id',
         'rol',
         'tecnologia_reportada',
@@ -23,9 +24,9 @@ class DocumentoMantenimiento extends Model
         'veces_adeudo',
         'observaciones_adeudo',
         'vigente',
-        // Si agregaste estos campos en la migración
-        'unidad_id',
-        'operador_id',
+        'firma_operador',
+        'firma_ing',
+        'firma_tabulacion',
     ];
 
     protected $casts = [
@@ -34,19 +35,16 @@ class DocumentoMantenimiento extends Model
         'veces_adeudo' => 'integer',
     ];
 
-    // Relación con AsignacionOperadorUnidad
     public function asignacion()
     {
         return $this->belongsTo(AsignacionOperadorUnidad::class, 'asignacion_id');
     }
 
-    // Relación con Unidad (si la agregaste)
     public function unidad()
     {
         return $this->belongsTo(Unidad::class);
     }
 
-    // Relación con Operador (si lo agregaste)
     public function operador()
     {
         return $this->belongsTo(Operador::class);

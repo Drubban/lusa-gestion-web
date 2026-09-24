@@ -1,26 +1,24 @@
-<?php
+class ApiEndpoints {
+  static const String baseUrl = 'http://100.94.214.0:8000';
+  static const String apiPrefix = '/api';
 
-use App\Http\Controllers\Admin\MovimientoController;
-use App\Http\Controllers\Api\DocumentoMantenimientoController;
-use App\Http\Controllers\Api\DocumentoCapacitacionController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CatalogoController;
+  // Auth
+  static const String login = '$apiPrefix/login';
+  static const String logout = '$apiPrefix/logout';
+  static const String perfil = '$apiPrefix/perfil';
 
-Route::get('/health', function () {
-    return response()->json(['status' => 'ok']);
-});
+  // Catalogos (solo GET)
+  static const String unidades = '$apiPrefix/unidades';
+  static const String operadores = '$apiPrefix/operadores';
+  static const String asignaciones = '$apiPrefix/asignaciones';
 
-Route::post('/login', [AuthController::class, 'login']); 
+  // Documentos (solo POST)
+  static const String documentosMantenimiento = '$apiPrefix/documentos-mantenimiento';
+  static const String documentosCapacitacion = '$apiPrefix/documentos-capacitacion';
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/perfil', [AuthController::class, 'perfil']);
-    Route::get('/operadores', [CatalogoController::class, 'operadores']);
-    Route::get('/unidades', [CatalogoController::class, 'unidades']);
-    Route::get('/asignaciones', [CatalogoController::class, 'asignaciones']);
-    
-    Route::post('/documentos-mantenimiento', [DocumentoMantenimientoController::class, 'store']);
-    Route::post('/documentos-capacitacion', [DocumentoCapacitacionController::class, 'store']);
-    Route::post('/movimientos', [MovimientoController::class, 'store']);
-});
+  // Movimientos (solo POST)
+  static const String movimientos = '$apiPrefix/movimientos';
+
+  // Health
+  static const String health = '$apiPrefix/health';
+}
