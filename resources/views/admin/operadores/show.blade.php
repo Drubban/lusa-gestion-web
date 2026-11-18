@@ -1,58 +1,34 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', $operador->nombre_completo)
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Detalle del Operador</h1>
-        <div>
-            <a href="{{ route('admin.operadores.edit', $operador) }}" class="btn btn-warning rounded-pill px-4">Editar</a>
-            <a href="{{ route('admin.operadores.index') }}" class="btn btn-secondary rounded-pill px-4">Volver</a>
-        </div>
-    </div>
-
-    <div class="card shadow-sm border-0 rounded-4">
-        <div class="card-body p-4">
-            <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Clave operador:</strong></div>
-                    <p>{{ $operador->clave_operador }}</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Nombre completo:</strong></div>
-                    <p>{{ $operador->nombre_completo }}</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Unidad actual:</strong></div>
-                    <p>{{ $unidadActual ? $unidadActual->numero_economico . ' - ' . $unidadActual->nombre_unidad : 'Sin unidad' }}</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Zona (según unidad):</strong></div>
-                    <p>{{ $unidadActual && $unidadActual->zona ? ucfirst($unidadActual->zona->nombre) : 'Sin zona' }}</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Estado:</strong></div>
-                    <p>{!! $operador->activo ? '<span class="badge bg-success rounded-pill px-3">Activo</span>' : '<span class="badge bg-danger rounded-pill px-3">Inactivo</span>' !!}</p>
-                </div>
-                <div class="col-md-6">
-                    <div class="border-bottom pb-2 mb-2"><strong>Registrado:</strong></div>
-                    <p>{{ $operador->created_at->format('d/m/Y H:i') }}</p>
-                </div>
-            </div>
-
-            <div class="mt-4">
-                <div class="border-bottom pb-2 mb-2"><strong>Historial de asignaciones</strong></div>
-                <ul class="list-group">
-                    @forelse($operador->asignaciones->sortByDesc('fecha_inicio') as $asig)
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <span><strong>{{ $asig->unidad->numero_economico }}</strong> - {{ $asig->unidad->nombre_unidad }}</span>
-                        <span>Desde {{ $asig->fecha_inicio->format('d/m/Y') }} @if($asig->fecha_fin) hasta {{ $asig->fecha_fin->format('d/m/Y') }} @else <span class="badge bg-success rounded-pill">Actual</span> @endif</span>
-                    </li>
-                    @empty
-                    <li class="list-group-item text-muted">Sin asignaciones previas</li>
-                    @endforelse
-                </ul>
-            </div>
-        </div>
-    </div>
+<x-page-header :title="$operador->nombre_completo" :subtitle="'Clave ' . $operador->clave_operador" :back="route('admin.operadores.index')" back-label="Operadores">
+    <x-slot:actions><a href="{{ route('admin.operadores.edit', $operador) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>Editar</a></x-slot:actions>
+</x-page-header>
+<div class="row g-3">
+    <div class="col-lg-4"><div class="card"><div class="card-body">
+        <div class="card-title-sm">Datos</div>
+        <x-dl :items="['Clave' => $operador->clave_operador, 'Zona' => ucfirst($operador->zona_nombre), 'Alta' => $operador->created_at?->format('d/m/Y')]">
+            <dt>Estado</dt><dd><x-badge :tone="$operador->activo ? 'success' : 'muted'" dot>{{ $operador->activo ? 'Activo' : 'Inactivo' }}</x-badge></dd>
+        </x-dl>
+    </div></div></div>
+    <div class="col-lg-8"><div class="card">
+        <div class="card-header">Historial de unidades</div>
+        <div class="table-responsive"><table class="table">
+            <thead><tr><th>Unidad</th><th>Zona</th><th>Desde</th><th>Hasta</th></tr></thead>
+            <tbody>
+            @forelse ($operador->asignaciones as $a)
+                <tr>
+                    <td>@if($a->unidad)<a href="{{ route('admin.unidades.show', $a->unidad) }}">{{ $a->unidad->numero_economico }}</a>@endif</td>
+                    <td>{{ ucfirst($a->unidad?->zona?->nombre ?? '-') }}</td>
+                    <td class="tabular">{{ $a->fecha_inicio?->format('d/m/Y') }}</td>
+                    <td>@if($a->vigente)<x-badge tone="success">Actual</x-badge>@else<span class="tabular">{{ $a->fecha_fin?->format('d/m/Y') }}</span>@endif</td>
+                </tr>
+            @empty
+                <tr><td colspan="4"><x-empty text="Sin asignaciones." /></td></tr>
+            @endforelse
+            </tbody>
+        </table></div>
+    </div></div>
 </div>
 @endsection

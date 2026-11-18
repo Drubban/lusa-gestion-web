@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
             OperadorSeeder::class,
             UnidadSeeder::class,
             AsignacionSeeder::class,
-            UsuarioDepartamentoSeeder::class,
+            UsuarioSeeder::class,
         ]);
     }
 }

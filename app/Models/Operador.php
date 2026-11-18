@@ -2,68 +2,51 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Operador extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'operadores';
 
-    protected $fillable = [
-        'clave_operador',
-        'nombre_completo',
-        'zona_id',
-        'activo',
-    ];
+    protected $fillable = ['clave_operador', 'nombre_completo', 'activo'];
 
-    protected $casts = [
-        'activo' => 'boolean',
-    ];
+    protected $casts = ['activo' => 'boolean'];
 
-    // Relación con Zona
-    public function zona()
-    {
-        return $this->belongsTo(Zona::class);
-    }
-
-    // Relación con asignaciones
-    public function asignaciones()
+    public function asignaciones(): HasMany
     {
         return $this->hasMany(AsignacionOperadorUnidad::class);
     }
 
-    // Asignación vigente
-    public function asignacionVigente()
+    public function asignacionVigente(): HasOne
     {
-        return $this->hasOne(AsignacionOperadorUnidad::class)
-            ->where('vigente', true)
-            ->whereNull('fecha_fin');
+        return $this->hasOne(AsignacionOperadorUnidad::class)->where('vigente', true)->latestOfMany('fecha_inicio');
     }
 
-    // Unidad actual
-    public function unidadActual()
+    /** La zona del operador es la de la unidad que tiene asignada. */
+    public function getZonaNombreAttribute(): string
     {
-        return $this->asignacionVigente()->with('unidad');
+        return $this->asignacionVigente?->unidad?->zona?->nombre ?? 'Sin zona';
     }
 
-    // Zona obtenida a través de la unidad actual
-    public function getZonaAttribute()
+    public function scopeActivos($query)
     {
-        $unidad = $this->asignacionVigente?->unidad;
-        return $unidad?->zona; // Asumiendo que Unidad tiene zona_id y relación con Zona
+        return $query->where('activo', true)->orderBy('nombre_completo');
     }
 
-    // Helper para mostrar nombre de zona
-    public function getZonaNombreAttribute()
+    public function scopeBuscar($query, ?string $termino)
     {
-        return $this->zona?->nombre ?? 'Sin zona';
+        if (! $termino) {
+            return $query;
+        }
+
+        return $query->where(fn ($q) => $q
+            ->where('clave_operador', 'ILIKE', "%{$termino}%")
+            ->orWhere('nombre_completo', 'ILIKE', "%{$termino}%"));
     }
-    public function __construct(array $attributes = [])
-{
-    parent::__construct($attributes);
-    Log::debug('Operador modelo instanciado, tabla: ' . $this->getTable());
-}
 }

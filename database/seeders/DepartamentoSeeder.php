@@ -1,24 +1,23 @@
 <?php
-// database/seeders/DepartamentoSeeder.php
 
 namespace Database\Seeders;
 
+use App\Models\Departamento;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class DepartamentoSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
+        // Colores alineados a la paleta Lusa (azul, amarillo, verde, morado)
         $departamentos = [
-            ['nombre' => 'taller', 'descripcion' => 'Departamento de taller mecánico', 'color' => '#FF5722', 'icono' => 'build', 'activo' => true],
-            ['nombre' => 'lavado', 'descripcion' => 'Departamento de lavado y limpieza', 'color' => '#2196F3', 'icono' => 'cleaning_services', 'activo' => true],
-            ['nombre' => 'sistemas', 'descripcion' => 'Departamento de sistemas y tecnología', 'color' => '#4CAF50', 'icono' => 'computer', 'activo' => true],
-            ['nombre' => 'diesel', 'descripcion' => 'Departamento de combustible diesel', 'color' => '#9C27B0', 'icono' => 'local_gas_station', 'activo' => true],
+            ['nombre' => 'taller', 'descripcion' => 'Taller mecanico', 'color' => '#D99A1E', 'icono' => 'build'],
+            ['nombre' => 'lavado', 'descripcion' => 'Lavado y limpieza', 'color' => '#1D5FAD', 'icono' => 'local_car_wash'],
+            ['nombre' => 'sistemas', 'descripcion' => 'Sistemas y tecnologia', 'color' => '#2E9E6A', 'icono' => 'memory'],
+            ['nombre' => 'diesel', 'descripcion' => 'Carga de diesel', 'color' => '#6E4FB8', 'icono' => 'local_gas_station'],
         ];
-        
-        foreach ($departamentos as $depto) {
-            DB::table('departamentos')->insert($depto);
+        foreach ($departamentos as $d) {
+            Departamento::updateOrCreate(['nombre' => $d['nombre']], $d + ['activo' => true]);
         }
     }
 }

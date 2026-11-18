@@ -1,141 +1,45 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', $documento->folio)
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Detalle de Documento de Mantenimiento</h1>
-        <div>
-            <a href="{{ route('admin.documentos-mantenimiento.exportar-pdf', $documento) }}"
-               class="btn btn-primary rounded-pill px-4">
-                <i class="fas fa-file-pdf"></i> Exportar PDF
-            </a>
-            <a href="{{ route('admin.documentos-mantenimiento.exportar-word', $documento) }}"
-               class="btn btn-secondary rounded-pill px-4">
-                <i class="fas fa-file-word"></i> Exportar Word
-            </a>
-            <a href="{{ route('admin.documentos-mantenimiento.index') }}"
-               class="btn btn-secondary rounded-pill px-4">Volver</a>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-xl-6">
-            <div class="card shadow-sm border-0 rounded-4 mb-4">
-                <div class="card-header bg-white fw-semibold">Información del documento</div>
-                <div class="card-body p-4">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Unidad:</strong></div>
-                            <p>{{ $documento->asignacion->unidad->numero_economico }} - {{ $documento->asignacion->unidad->nombre_unidad ?? 'Sin nombre' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Zona (Rol):</strong></div>
-                            <p>{{ $documento->rol ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Operador:</strong></div>
-                            <p>{{ $documento->asignacion->operador->nombre_completo ?? 'Sin operador' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Clave operador:</strong></div>
-                            <p>{{ $documento->asignacion->operador->clave_operador ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Tecnología reportada:</strong></div>
-                            <p>{{ $documento->tecnologia_reportada }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Prueba barras Optocontrol:</strong></div>
-                            <p>{{ $documento->prueba_barras ?? 'No aplica' }}</p>
-                        </div>
-                        <div class="col-12">
-                            <div class="border-bottom pb-1 mb-2"><strong>Comentarios:</strong></div>
-                            <p>{{ $documento->comentarios ?? 'Ninguno' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Fecha:</strong></div>
-                            <p>{{ \Carbon\Carbon::parse($documento->fecha)->format('d/m/Y') }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Hora:</strong></div>
-                            <p>{{ $documento->hora }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Número de adeudos:</strong></div>
-                            <p>{{ $documento->veces_adeudo }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-1 mb-2"><strong>Observaciones adeudo:</strong></div>
-                            <p>{{ $documento->observaciones_adeudo ?? 'Ninguna' }}</p>
-                        </div>
-                        <div class="col-12">
-                            <div class="border-bottom pb-1 mb-2"><strong>Vigente:</strong></div>
-                            <p>{!! $documento->vigente ? '<span class="badge bg-success">Sí</span>' : '<span class="badge bg-secondary">No</span>' !!}</p>
-                        </div>
-                    </div>
-                </div>
+<x-page-header :title="$documento->folio" subtitle="Documento de mantenimiento" :back="route('admin.documentos-mantenimiento.index')" back-label="Documentos">
+    <x-slot:actions>
+        <a href="{{ route('admin.documentos-mantenimiento.pdf', $documento) }}" class="btn btn-light"><i class="bi bi-file-earmark-pdf me-1"></i>PDF</a>
+        <a href="{{ route('admin.documentos-mantenimiento.word', $documento) }}" class="btn btn-light"><i class="bi bi-file-earmark-word me-1"></i>Word</a>
+        <a href="{{ route('admin.documentos-mantenimiento.edit', $documento) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>Editar</a>
+    </x-slot:actions>
+</x-page-header>
+<div class="row g-3">
+    <div class="col-lg-7"><div class="card"><div class="card-body">
+        <x-dl :items="[
+            'Unidad' => $documento->unidad?->etiqueta,
+            'Zona' => ucfirst($documento->unidad?->zona?->nombre ?? ''),
+            'Operador' => $documento->operador ? $documento->operador->nombre_completo . ' (' . $documento->operador->clave_operador . ')' : null,
+            'Fecha y hora' => $documento->fecha?->format('d/m/Y') . ' ' . substr((string) $documento->hora, 0, 5),
+            'Estado de camaras' => $documento->estado_camaras,
+            'Prueba de barras' => $documento->prueba_barras,
+            'Comentarios' => $documento->comentarios,
+            'Adeudos' => $documento->veces_adeudo . ($documento->observaciones_adeudo ? ' - ' . $documento->observaciones_adeudo : ''),
+            'Capturado por' => $documento->usuario?->nombre_visible,
+        ]">
+            <dt>Tecnologia</dt><dd>@foreach($documento->tecnologias as $t)<x-badge tone="primary" class="me-1">{{ \App\Models\DocumentoMantenimiento::TECNOLOGIAS[$t] ?? $t }}</x-badge>@endforeach</dd>
+            <dt>Estado</dt><dd><x-badge :tone="$documento->vigente ? 'success' : 'muted'">{{ $documento->vigente ? 'Vigente' : 'No vigente' }}</x-badge></dd>
+        </x-dl>
+    </div></div></div>
+    <div class="col-lg-5"><div class="card"><div class="card-body">
+        <div class="card-title-sm">Firmas</div>
+        @foreach (\App\Models\DocumentoMantenimiento::FIRMAS as $tipo => $etiqueta)
+            @php $firma = $documento->firma($tipo); @endphp
+            <div class="mb-3 pb-3 border-bottom">
+                <div class="small text-muted mb-1">{{ $etiqueta }}</div>
+                @if ($firma)
+                    <img src="{{ $firma->data_uri }}" class="firma-img" alt="{{ $etiqueta }}">
+                    @unless($firma->integridadValida())<div class="small text-danger"><i class="bi bi-shield-exclamation"></i> La firma no coincide con su huella original.</div>@endunless
+                @else
+                    <span class="text-muted small">Sin firma</span>
+                @endif
             </div>
-        </div>
-
-        <div class="col-xl-6">
-            <div class="card shadow-sm border-0 rounded-4 mb-4">
-                <div class="card-header bg-white fw-semibold">Firmas</div>
-                <div class="card-body p-4">
-                    @if($documento->firma_operador)
-                    <div class="mb-4">
-                        <strong>Firma del operador:</strong>
-                        <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,{{ $documento->firma_operador }}"
-                                 style="max-width: 100%; max-height: 120px;" alt="Firma operador">
-                        </div>
-                    </div>
-                    @endif
-
-                    @if($documento->firma_ing)
-                    <div class="mb-4">
-                        <strong>Firma del Ing. a cargo:</strong>
-                        <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,{{ $documento->firma_ing }}"
-                                 style="max-width: 100%; max-height: 120px;" alt="Firma Ing.">
-                        </div>
-                    </div>
-                    @endif
-
-                    @if($documento->firma_tabulacion)
-                    <div class="mb-4">
-                        <strong>Firma de tabulación:</strong>
-                        <div class="border rounded p-2 mt-2 text-center bg-light">
-                            <img src="data:image/png;base64,{{ $documento->firma_tabulacion }}"
-                                 style="max-width: 100%; max-height: 120px;" alt="Firma tabulación">
-                        </div>
-                    </div>
-                    @endif
-
-                    @if(!$documento->firma_operador && !$documento->firma_ing && !$documento->firma_tabulacion)
-                        <p class="text-muted text-center">Sin firmas registradas</p>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Vista previa embebida con iframe (aislada del layout) --}}
-    <div class="card shadow-sm border-0 rounded-4 mt-2">
-        <div class="card-header bg-white fw-semibold d-flex justify-content-between align-items-center">
-            <span>Vista previa del documento</span>
-            <button class="btn btn-sm btn-outline-secondary" type="button"
-                    data-bs-toggle="collapse" data-bs-target="#previewCollapse">
-                <i class="fas fa-eye"></i> Mostrar / Ocultar
-            </button>
-        </div>
-        <div class="collapse" id="previewCollapse">
-            <div class="card-body p-0">
-                <iframe src="{{ route('admin.documentos-mantenimiento.exportar-pdf', $documento) }}"
-                        style="width: 100%; height: 800px; border: 0;"
-                        title="Vista previa del PDF">
-                </iframe>
-            </div>
-        </div>
-    </div>
+        @endforeach
+    </div></div></div>
 </div>
 @endsection

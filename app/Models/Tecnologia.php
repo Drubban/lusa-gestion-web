@@ -2,38 +2,30 @@
 
 namespace App\Models;
 
+use App\Enums\TipoTecnologia;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+/**
+ * Tecnologia instalada en una unidad. Los datos propios de cada tipo viven en
+ * su tabla (barras, telpos, gps, mdvrs) con relacion 1 a 1.
+ */
 class Tecnologia extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'tecnologias';
 
-    protected $fillable = [
-        'unidad_id',
-        'tipo',
-        'nombre',
-        'activo',
-        'created_by',
-    ];
+    protected $fillable = ['unidad_id', 'tipo', 'nombre', 'activo', 'created_by'];
 
     protected $casts = [
         'activo' => 'boolean',
+        'tipo' => TipoTecnologia::class,
     ];
 
-    // Constantes para los tipos
-    const TIPOS = [
-        'barras' => 'Barras',
-        'telpo' => 'Telpo',
-        'gps' => 'GPS',
-        'mdvr' => 'MDVR',
-    ];
-
-    // Relaciones
     public function unidad(): BelongsTo
     {
         return $this->belongsTo(Unidad::class);
@@ -41,10 +33,9 @@ class Tecnologia extends Model
 
     public function creador(): BelongsTo
     {
-        return $this->belongsTo(UsuarioDepartamento::class, 'created_by');
+        return $this->belongsTo(Usuario::class, 'created_by');
     }
 
-    // Relaciones polimórficas con cada tecnología
     public function barras(): HasOne
     {
         return $this->hasOne(Barra::class);
@@ -65,42 +56,31 @@ class Tecnologia extends Model
         return $this->hasOne(Mdvr::class);
     }
 
-    // Métodos de ayuda
-    public function getTipoNombreAttribute(): string
+    /** Registro del subtipo correspondiente (Barra, Telpo, Gps o Mdvr). */
+    public function detalle(): ?Model
     {
-        return self::TIPOS[$this->tipo] ?? $this->tipo;
+        return $this->tipo ? $this->{$this->tipo->relacion()} : null;
     }
 
-    public function getDatosAttribute(): ?array
+    public function getDatosAttribute(): array
     {
-        switch ($this->tipo) {
-            case 'barras':
-                return $this->barras?->toArray();
-            case 'telpo':
-                return $this->telpo?->toArray();
-            case 'gps':
-                return $this->gps?->toArray();
-            case 'mdvr':
-                return $this->mdvr?->toArray();
-            default:
-                return null;
+        if (! $this->tipo) {
+            return [];
         }
+        $detalle = $this->detalle();
+        $out = [];
+        foreach ($this->tipo->campos() as $campo => $etiqueta) {
+            $out[$etiqueta] = $detalle?->{$campo};
+        }
+
+        return $out;
     }
 
-    // Scopes
-    public function scopePorTipo($query, $tipo)
+    public function scopeFiltrar($query, array $f)
     {
-        if ($tipo) {
-            return $query->where('tipo', $tipo);
-        }
-        return $query;
-    }
-
-    public function scopePorUnidad($query, $unidadId)
-    {
-        if ($unidadId) {
-            return $query->where('unidad_id', $unidadId);
-        }
-        return $query;
+        return $query
+            ->when($f['tipo'] ?? null, fn ($q, $v) => $q->where('tipo', $v))
+            ->when($f['unidad_id'] ?? null, fn ($q, $v) => $q->where('unidad_id', $v))
+            ->when($f['search'] ?? null, fn ($q, $t) => $q->whereHas('unidad', fn ($u) => $u->buscar($t)));
     }
 }

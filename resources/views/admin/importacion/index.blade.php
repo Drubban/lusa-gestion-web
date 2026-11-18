@@ -1,177 +1,39 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', 'Importar datos')
 
 @section('content')
-<div class="container-fluid px-4">
-    <h1 class="mt-4">Importación masiva de datos</h1>
+<x-page-header title="Importar datos" subtitle="Carga masiva desde CSV (separado por coma o punto y coma, UTF-8)" />
 
-    @if(session('success'))
-        <div class="alert alert-success">{{ session('success') }}</div>
-    @endif
-    @if(session('error'))
-        <div class="alert alert-danger">{{ session('error') }}</div>
-    @endif
-    @if(session('errores') && count(session('errores')) > 0)
-        <div class="alert alert-warning">
-            <strong>Errores encontrados:</strong>
-            <ul>@foreach(session('errores') as $error) <li>{{ $error }}</li> @endforeach</ul>
-        </div>
-    @endif
-
-    <div class="row">
-        <!-- Unidades -->
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 rounded-4 mb-4">
-                <div class="card-header bg-white fw-bold">Importar Unidades (CSV)</div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.unidades') }}" enctype="multipart/form-data">
-                        @csrf
-                        <div class="mb-3">
-                            <label class="form-label">Archivo CSV</label>
-                            <input type="file" name="archivo" class="form-control" accept=".csv" required>
-                            <div class="form-text">
-                                <strong>Columnas requeridas:</strong> numero_economico, zona (reyes/apaxco/citrus).<br>
-                                Opcionales: nombre_unidad, activo.<br>
-                                <a href="#" id="descargarPlantillaUnidades">Descargar plantilla ejemplo</a>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4">Importar</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- Operadores -->
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">Importar Operadores (CSV)</div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.operadores') }}" enctype="multipart/form-data">
-                        @csrf
-                        <div class="mb-3">
-                            <label class="form-label">Archivo CSV</label>
-                            <input type="file" name="archivo" class="form-control" accept=".csv" required>
-                            <div class="form-text">
-                                <strong>Columnas requeridas:</strong> clave_operador, nombre_completo, zona_nombre (reyes/apaxco/citrus).<br>
-                                Opcionales: activo.<br>
-                                <a href="#" id="descargarPlantillaOperadores" class="small">Descargar plantilla ejemplo</a>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4">Importar</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-
-        <!-- 🔥 TECNOLOGÍAS -->
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold text-primary">
-                    <i class="fas fa-microchip me-2"></i>Importar Tecnologías (CSV)
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ route('admin.importar.tecnologias') }}" enctype="multipart/form-data">
-                        @csrf
-                        <div class="mb-3">
-                            <label class="form-label">Archivo CSV</label>
-                            <input type="file" name="archivo" class="form-control" accept=".csv" required>
-                            <div class="form-text">
-                                <strong>Columnas requeridas:</strong> numero_economico, tipo (barras/telpo/gps/mdvr).<br>
-                                <strong>Columnas opcionales según tipo:</strong>
-                                <ul class="small mt-1 mb-0">
-                                    <li><strong>Barras:</strong> id_barra, barras, telefono_barras, plan_barras</li>
-                                    <li><strong>Telpo:</strong> imei_antes, v_apk, telpo, imei_telpo, telefono_telpo, plan_telpo, costo_plan</li>
-                                    <li><strong>GPS:</strong> imei_gps, telefono_gps, plan_gps</li>
-                                    <li><strong>MDVR:</strong> dvr, modelo, camaras, memoria</li>
-                                </ul>
-                                <a href="{{ route('admin.importar.plantilla.tecnologias') }}" class="small" target="_blank">
-                                    <i class="fas fa-download me-1"></i>Descargar plantilla ejemplo
-                                </a>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary rounded-pill px-4">
-                            <i class="fas fa-upload me-2"></i>Importar Tecnologías
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
+@if ($errores = session('errores'))
+    @if (count($errores))
+    <div class="card mb-3"><div class="card-header">Avisos de la importacion <x-badge tone="warning">{{ count($errores) }}</x-badge></div>
+        <div class="card-body small" style="max-height:240px;overflow:auto"><ul class="mb-0 ps-3">@foreach ($errores as $e)<li>{{ $e }}</li>@endforeach</ul></div>
     </div>
+    @endif
+@endif
 
-    <!-- Información adicional sobre tipos de tecnología -->
-    <div class="row mt-4">
-        <div class="col-12">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-header bg-white fw-bold">
-                    <i class="fas fa-info-circle me-2"></i>Tipos de Tecnología
-                </div>
+<div class="row g-3">
+    @foreach ([
+        ['unidades', 'Unidades', 'bi-bus-front', 'numero_economico, zona', 'nombre_unidad, activo'],
+        ['operadores', 'Operadores', 'bi-person-badge', 'clave_operador, nombre_completo', 'numero_economico (asigna unidad), activo'],
+        ['tecnologias', 'Tecnologias', 'bi-cpu', 'numero_economico, tipo', 'nombre, activo y los campos del tipo'],
+    ] as [$ruta, $titulo, $icono, $req, $opc])
+        <div class="col-lg-4">
+            <form method="POST" action="{{ route('admin.importar.' . $ruta) }}" enctype="multipart/form-data" class="card h-100">
+                @csrf
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Tipo</th>
-                                    <th>Descripción</th>
-                                    <th>Campos requeridos</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td><span class="badge bg-primary">barras</span></td>
-                                    <td>Equipo de barras / lectores</td>
-                                    <td>id_barra, barras, telefono_barras, plan_barras</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-success">telpo</span></td>
-                                    <td>Equipo Telpo (terminales de pago)</td>
-                                    <td>imei_antes, v_apk, telpo, imei_telpo, telefono_telpo, plan_telpo, costo_plan</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-warning">gps</span></td>
-                                    <td>Equipo GPS (localización)</td>
-                                    <td>imei_gps, telefono_gps, plan_gps</td>
-                                </tr>
-                                <tr>
-                                    <td><span class="badge bg-danger">mdvr</span></td>
-                                    <td>Equipo MDVR (grabación de video)</td>
-                                    <td>dvr, modelo, camaras, memoria</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                    <span class="stat-icon tone-primary mb-3"><i class="bi {{ $icono }}"></i></span>
+                    <h2 class="h5">{{ $titulo }}</h2>
+                    <p class="small text-muted mb-1"><strong>Obligatorias:</strong> {{ $req }}</p>
+                    <p class="small text-muted"><strong>Opcionales:</strong> {{ $opc }}</p>
+                    <input type="file" name="archivo" accept=".csv,.txt" class="form-control" required>
+                    @if ($ruta === 'tecnologias')
+                        <a href="{{ route('admin.importar.plantilla.tecnologias') }}" class="small d-inline-block mt-2"><i class="bi bi-download me-1"></i>Descargar plantilla</a>
+                    @endif
                 </div>
-            </div>
+                <div class="card-body border-top"><button class="btn btn-primary w-100"><i class="bi bi-upload me-1"></i>Importar {{ strtolower($titulo) }}</button></div>
+            </form>
         </div>
-    </div>
+    @endforeach
 </div>
-
-<script>
-// Generar archivos CSV de ejemplo
-document.getElementById('descargarPlantillaUnidades').addEventListener('click', function(e) {
-    e.preventDefault();
-    const contenido = "numero_economico,nombre_unidad,zona,activo\nECO-001,Unidad Centro,reyes,1\nECO-002,Unidad Norte,apaxco,1\nECO-003,Unidad Sur,citrus,0";
-    const blob = new Blob([contenido], {type: 'text/csv;charset=utf-8;'});
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', 'plantilla_unidades.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-});
-
-document.getElementById('descargarPlantillaOperadores').addEventListener('click', function(e) {
-    e.preventDefault();
-    const contenido = "clave_operador,nombre_completo,zona_nombre,activo\n10001,Juan Pérez,reyes,1\n10002,María López,apaxco,1\n10003,Carlos Ruiz,citrus,0";
-    const blob = new Blob([contenido], {type: 'text/csv;charset=utf-8;'});
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.href = url;
-    link.setAttribute('download', 'plantilla_operadores.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-});
-</script>
 @endsection

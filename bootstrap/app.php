@@ -1,19 +1,21 @@
 <?php
 
-use App\Http\Middleware\DepartamentoMiddleware;
-use App\Http\Middleware\EsAdministrador;
-use App\Http\Middleware\LogCsrfTokenMismatch;
+use App\Exceptions\ReglaNegocioException;
+use App\Http\Middleware\AccesoPanel;
+use App\Http\Middleware\CabecerasSeguridad;
+use App\Http\Middleware\ForzarJson;
+use App\Http\Middleware\SoloAdmin;
+use App\Http\Middleware\VerificarFirmaApp;
 use Illuminate\Auth\AuthenticationException;
-use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
-use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Middleware\SubstituteBindings;
-use Illuminate\Session\Middleware\StartSession;
-use Illuminate\View\Middleware\ShareErrorsFromSession;
-use Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful;
+use Laravel\Sanctum\Http\Middleware\CheckAbilities;
+use Laravel\Sanctum\Http\Middleware\CheckForAnyAbility;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,37 +25,48 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // ✅ Configuración CSRF moderna
-        $middleware->validateCsrfTokens();
-
-        // Middleware para API (Sanctum)
-        $middleware->api([
-            EnsureFrontendRequestsAreStateful::class,
-        ]);
-
-        // Middleware para web (incluyendo el log)
-        $middleware->web([
-            LogCsrfTokenMismatch::class,
-            EncryptCookies::class,
-            AddQueuedCookiesToResponse::class,
-            StartSession::class,
-            ShareErrorsFromSession::class,
-            SubstituteBindings::class,
-        ]);
-
-        // Aliases
+        $middleware->append(CabecerasSeguridad::class);
         $middleware->alias([
-            'departamento' => DepartamentoMiddleware::class,
-            'admin' => EsAdministrador::class,
+            'panel' => AccesoPanel::class,
+            'admin' => SoloAdmin::class,
+            'json' => ForzarJson::class,
+            'firma.app' => VerificarFirmaApp::class,
+            'abilities' => CheckAbilities::class,
+            'ability' => CheckForAnyAbility::class,
         ]);
+        $middleware->redirectGuestsTo(fn () => route('login'));
+        $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
+        // Confiar en el proxy/balanceador local para detectar HTTPS correctamente
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES', '127.0.0.1'));
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        // Manejo específico para peticiones API no autenticadas
-        $exceptions->render(function (AuthenticationException $e, Request $request) {
+        // Errores de negocio: mensaje claro al usuario
+        $exceptions->render(function (ReglaNegocioException $e, Request $request) {
             if ($request->expectsJson()) {
-                return response()->json(['message' => 'No autenticado'], 401);
+                return response()->json(['message' => $e->getMessage(), 'codigo' => 'regla_negocio'], 422);
             }
-            return redirect()->guest(route('login'));
+
+            return back()->withInput()->withErrors(['error' => $e->getMessage()]);
         });
+
+        // La API nunca expone trazas, rutas de archivo ni mensajes internos
+        $exceptions->render(function (Throwable $e, Request $request) {
+            if (! $request->is('api/*')) {
+                return null;
+            }
+            if ($e instanceof AuthenticationException) {
+                return response()->json(['message' => 'Sesion expirada o invalida.', 'codigo' => 'no_autenticado'], 401);
+            }
+            if ($e instanceof ModelNotFoundException || $e instanceof NotFoundHttpException) {
+                return response()->json(['message' => 'Recurso no encontrado.'], 404);
+            }
+            if ($e instanceof HttpExceptionInterface) {
+                return response()->json(['message' => $e->getMessage() ?: 'Solicitud no permitida.'], $e->getStatusCode());
+            }
+
+            return null;
+        });
+
+        $exceptions->dontFlash(['password', 'password_confirmation', 'current_password']);
     })
     ->create();

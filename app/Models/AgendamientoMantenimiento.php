@@ -2,35 +2,31 @@
 
 namespace App\Models;
 
+use App\Enums\EstadoAgendamiento;
+use App\Enums\MotivoNoPresentado;
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AgendamientoMantenimiento extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'agendamientos_mantenimiento';
 
     protected $fillable = [
-        'unidad_id',
-        'fecha_agendada',
-        'estado',
-        'fecha_cumplimiento',
-        'observaciones',
-        'motivo_no_presentado',
-        'fecha_reprogramada',
-        'reportado_por',
-        'created_by',
+        'unidad_id', 'fecha_agendada', 'estado', 'fecha_cumplimiento', 'observaciones',
+        'motivo_no_presentado', 'fecha_reprogramada', 'reportado_por', 'created_by',
     ];
 
     protected $casts = [
         'fecha_agendada' => 'date',
         'fecha_cumplimiento' => 'date',
         'fecha_reprogramada' => 'date',
+        'estado' => EstadoAgendamiento::class,
     ];
 
-    // Relaciones
     public function unidad(): BelongsTo
     {
         return $this->belongsTo(Unidad::class);
@@ -38,69 +34,42 @@ class AgendamientoMantenimiento extends Model
 
     public function creador(): BelongsTo
     {
-        return $this->belongsTo(UsuarioDepartamento::class, 'created_by');
+        return $this->belongsTo(Usuario::class, 'created_by');
     }
 
     public function reportadoPor(): BelongsTo
     {
-        return $this->belongsTo(UsuarioDepartamento::class, 'reportado_por');
+        return $this->belongsTo(Usuario::class, 'reportado_por');
     }
 
-    // Scopes
     public function scopePendientes($query)
     {
-        return $query->where('estado', 'pendiente');
+        return $query->where('estado', EstadoAgendamiento::Pendiente->value);
     }
 
-    public function scopeCumplidos($query)
+    /** Motivo como enum; registros historicos con texto libre devuelven null. */
+    public function getMotivoAttribute(): ?MotivoNoPresentado
     {
-        return $query->where('estado', 'cumplido');
+        return MotivoNoPresentado::tryFrom((string) $this->motivo_no_presentado);
     }
 
-    public function scopeNoCumplidos($query)
+    public function getMotivoEtiquetaAttribute(): ?string
     {
-        return $query->where('estado', 'no_cumplido');
-    }
-
-    public function scopeReagendados($query)
-    {
-        return $query->where('estado', 'reagendado');
-    }
-
-    public function scopeReportados($query)
-    {
-        return $query->where('estado', 'no_cumplido');
-    }
-
-    public function getEstadoBadgeAttribute(): string
-    {
-        return match ($this->estado) {
-            'pendiente' => '<span class="badge bg-warning text-dark">Pendiente</span>',
-            'cumplido' => '<span class="badge bg-success">Cumplido</span>',
-            'no_cumplido' => '<span class="badge bg-danger">No cumplido</span>',
-            'reagendado' => '<span class="badge bg-info">Reagendado</span>',
-            default => '<span class="badge bg-secondary">Desconocido</span>',
-        };
+        return $this->motivo?->etiqueta() ?? $this->motivo_no_presentado;
     }
 
     public function getDiasRestantesAttribute(): ?int
     {
-        if (!$this->fecha_agendada) {
-            return null;
-        }
-        return now()->diffInDays($this->fecha_agendada, false);
+        return $this->fecha_agendada ? (int) now()->startOfDay()->diffInDays($this->fecha_agendada, false) : null;
     }
 
-    public function getMotivoDisplayAttribute(): string
+    public function scopeFiltrar($query, array $f)
     {
-        $motivos = [
-            'taller' => 'En taller',
-            'averia' => 'Avería mecánica',
-            'falta_operador' => 'Falta de operador',
-            'documentacion' => 'Falta de documentación',
-            'cliente' => 'Unidad en ruta con cliente',
-            'otros' => 'Otro motivo',
-        ];
-        return $motivos[$this->motivo_no_presentado] ?? $this->motivo_no_presentado ?? 'Sin especificar';
+        return $query
+            ->when($f['estado'] ?? null, fn ($q, $v) => $q->where('estado', $v))
+            ->when($f['unidad_id'] ?? null, fn ($q, $v) => $q->where('unidad_id', $v))
+            ->when($f['motivo'] ?? null, fn ($q, $v) => $q->where('motivo_no_presentado', $v))
+            ->when(($f['desde'] ?? null) && ($f['hasta'] ?? null), fn ($q) => $q->whereBetween('fecha_agendada', [$f['desde'], $f['hasta']]))
+            ->when($f['search'] ?? null, fn ($q, $t) => $q->whereHas('unidad', fn ($u) => $u->buscar($t)));
     }
 }

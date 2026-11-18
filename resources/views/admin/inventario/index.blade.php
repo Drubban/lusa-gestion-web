@@ -1,176 +1,41 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', 'Inventario de sistemas')
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Inventario</h1>
-        <a href="{{ route('admin.inventario.create') }}" class="btn btn-primary rounded-pill px-4">
-            <i class="fas fa-plus me-2"></i> Nuevo Registro
-        </a>
+<x-page-header title="Inventario de sistemas" subtitle="Entregas de equipo y consumibles por departamento">
+    <x-slot:actions><a href="{{ route('admin.inventario.create') }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Registrar entrega</a></x-slot:actions>
+</x-page-header>
+<div class="card">
+    <div class="card-body border-bottom">
+        <form class="filters" method="GET">
+            <div class="grow"><label class="form-label">Buscar</label><input class="form-control" name="search" value="{{ request('search') }}" placeholder="Articulo, serie, persona o clave"></div>
+            <x-form.select name="categoria" label="Categoria" :options="$categorias" :selected="request('categoria')" placeholder="Todas" wrapper="" />
+            <div><label class="form-label">Desde</label><input type="date" class="form-control" name="desde" value="{{ request('desde') }}"></div>
+            <div><label class="form-label">Hasta</label><input type="date" class="form-control" name="hasta" value="{{ request('hasta') }}"></div>
+            <div><button class="btn btn-light"><i class="bi bi-funnel me-1"></i>Filtrar</button></div>
+        </form>
     </div>
-
-    <!-- Filtros -->
-    <div class="card shadow-sm border-0 rounded-4 mb-4">
-        <div class="card-body">
-            <form method="GET" action="{{ route('admin.inventario.index') }}" class="row g-3">
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Buscar</label>
-                    <input type="text" name="search" class="form-control" placeholder="Nombre, clave, serie..." value="{{ request('search') }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Categoría</label>
-                    <select name="categoria" class="form-select">
-                        <option value="">Todas</option>
-                        @foreach($categorias as $key => $nombre)
-                        <option value="{{ $key }}" {{ request('categoria') == $key ? 'selected' : '' }}>
-                            {{ $nombre }}
-                        </option>
-                        @endforeach
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Fecha Inicio</label>
-                    <input type="date" name="fecha_inicio" class="form-control" value="{{ request('fecha_inicio') }}">
-                </div>
-                <div class="col-md-2">
-                    <label class="form-label fw-semibold">Fecha Fin</label>
-                    <input type="date" name="fecha_fin" class="form-control" value="{{ request('fecha_fin') }}">
-                </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
-                    <button type="submit" class="btn btn-primary rounded-pill px-4">
-                        <i class="fas fa-search me-2"></i> Filtrar
-                    </button>
-                    <a href="{{ route('admin.inventario.index') }}" class="btn btn-secondary rounded-pill px-4">
-                        <i class="fas fa-undo me-2"></i> Limpiar
-                    </a>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Tabla -->
-    <div class="card shadow-sm border-0 rounded-4">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th class="px-4 py-3">Fecha</th>
-                            <th class="px-4 py-3">Recibe</th>
-                            <th class="px-4 py-3">Departamento</th>
-                            <th class="px-4 py-3">Zona</th>
-                            <th class="px-4 py-3">Área</th>
-                            <th class="px-4 py-3">Imagen</th>
-                            <th class="px-4 py-3">Categoría</th>
-                            <th class="px-4 py-3">Producto/Equipo</th>
-                            <th class="px-4 py-3">Cantidad/Serie</th>
-                            <th class="px-4 py-3 text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($inventarios as $item)
-                        <tr>
-                            <td class="px-4 py-3">{{ $item->fecha_entrega->format('d/m/Y') }}</td>
-                            <td class="px-4 py-3">
-                                <strong>{{ $item->nombre_recibe }}</strong>
-                                <br><small class="text-muted">Clave: {{ $item->clave_empleado }}</small>
-                            </td>
-                            <td class="px-4 py-3">{{ $item->departamento->nombre ?? 'N/A' }}</td>
-                            <td class="px-4 py-3">{{ $item->zona->nombre ?? 'N/A' }}</td>
-                            <td class="px-4 py-3">{{ $item->area ?? 'N/A' }}</td>
-                            <td class="px-4 py-3">
-                                @if($item->imagen)
-                                <a href="{{ $item->imagen_url }}" target="_blank" class="btn btn-sm btn-outline-info">
-                                    <i class="fas fa-image"></i>
-                                </a>
-                                @else
-                                <span class="text-muted">-</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3">
-                                <span class="badge bg-info">{{ $item->nombre_categoria }}</span>
-                            </td>
-                            <td class="px-4 py-3">
-                                @if($item->esCategoriaEquipo())
-                                {{ $item->nombre_equipo ?? 'N/A' }}
-                                @else
-                                {{ $item->nombre_producto ?? 'N/A' }}
-                                @endif
-                            </td>
-                            <td class="px-4 py-3">
-                                @if($item->esCategoriaEquipo())
-                                <span class="badge bg-secondary">Serie: {{ $item->numero_serie ?? 'N/A' }}</span>
-                                @else
-                                <span class="badge bg-success">Cant: {{ $item->cantidad ?? 0 }}</span>
-                                @endif
-                            </td>
-                            <td class="px-4 py-3 text-center">
-                                <div class="btn-group" role="group">
-                                    <a href="{{ route('admin.inventario.show', $item) }}"
-                                        class="btn btn-sm btn-outline-info" title="Ver">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ route('admin.inventario.edit', $item) }}"
-                                        class="btn btn-sm btn-outline-warning" title="Editar">
-                                        <i class="fas fa-edit"></i>
-                                    </a>
-                                    <!-- 🔥 CORREGIDO: Usar data-id en lugar de onclick directo -->
-                                    <button type="button"
-                                        class="btn btn-sm btn-outline-danger btn-delete"
-                                        title="Eliminar"
-                                        data-id="{{ $item->id }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                </div>
-                                <!-- Formulario oculto para eliminar -->
-                                <form id="delete-form-{{ $item->id }}"
-                                    action="{{ route('admin.inventario.destroy', $item) }}"
-                                    method="POST" style="display: none;">
-                                    @csrf
-                                    @method('DELETE')
-                                </form>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-4 text-muted">
-                                <i class="fas fa-box-open fa-2x d-block mb-2"></i>
-                                No hay registros de inventario
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Paginación -->
-    <div class="mt-4 d-flex justify-content-between align-items-center">
-        <div>
-            Mostrando {{ $inventarios->firstItem() ?? 0 }} - {{ $inventarios->lastItem() ?? 0 }}
-            de {{ $inventarios->total() }} registros
-        </div>
-        <div>
-            {{ $inventarios->links() }}
-        </div>
-    </div>
+    <div class="table-responsive"><table class="table table-hover">
+        <thead><tr><th>Fecha</th><th>Articulo</th><th>Categoria</th><th>Cant.</th><th>Recibe</th><th>Departamento</th><th></th></tr></thead>
+        <tbody>
+        @forelse ($inventarios as $i)
+            <tr>
+                <td class="tabular">{{ $i->fecha_entrega?->format('d/m/Y') }}</td>
+                <td><a href="{{ route('admin.inventario.show', $i) }}" class="fw-semibold">{{ $i->nombre }}</a><span class="sub">{{ trim($i->marca . ' ' . $i->modelo) }} @if($i->numero_serie) - S/N {{ $i->numero_serie }} @endif</span></td>
+                <td><x-badge :tone="$i->categoria?->esEquipo() ? 'primary' : 'purple'">{{ $i->categoria?->etiqueta() }}</x-badge></td>
+                <td class="tabular">{{ $i->cantidad }}</td>
+                <td>{{ $i->nombre_recibe }}<span class="sub">{{ $i->clave_empleado }}</span></td>
+                <td>{{ ucfirst($i->departamento?->nombre ?? '-') }}<span class="sub">{{ $i->area }}</span></td>
+                <td class="table-actions">
+                    <x-icon-link :href="route('admin.inventario.edit', $i)" icon="bi-pencil" title="Editar" />
+                    <x-delete-button :action="route('admin.inventario.destroy', $i)" />
+                </td>
+            </tr>
+        @empty
+            <tr><td colspan="7"><x-empty icon="bi-box-seam" text="Sin registros de inventario." /></td></tr>
+        @endforelse
+        </tbody>
+    </table></div>
+    <x-pagination :paginator="$inventarios" />
 </div>
-
-<!-- 🔥 SCRIPT CORREGIDO: Usar event delegation -->
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Usar event delegation para manejar todos los botones de eliminar
-        document.addEventListener('click', function(e) {
-            const deleteBtn = e.target.closest('.btn-delete');
-            if (deleteBtn) {
-                e.preventDefault();
-                const id = deleteBtn.getAttribute('data-id');
-                if (id && confirm('¿Estás seguro de eliminar este registro?')) {
-                    document.getElementById('delete-form-' + id).submit();
-                }
-            }
-        });
-    });
-</script>
 @endsection

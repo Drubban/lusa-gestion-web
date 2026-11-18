@@ -13,6 +13,16 @@ class CleanDatabase extends Command
 
     public function handle()
     {
+        // Comando destructivo: nunca en produccion y siempre con confirmacion explicita
+        if (app()->isProduction()) {
+            $this->error('Este comando esta bloqueado en produccion.');
+
+            return self::FAILURE;
+        }
+        if (! $this->confirm('Se eliminaran TODAS las tablas de ' . config('database.connections.' . config('database.default') . '.database') . '. Continuar?')) {
+            return self::SUCCESS;
+        }
+
         $this->info('Limpiando base de datos...');
         
         // Deshabilitar restricciones de clave foránea

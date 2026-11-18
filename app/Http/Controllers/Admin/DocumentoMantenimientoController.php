@@ -3,287 +3,128 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AsignacionOperadorUnidad;
+use App\Http\Requests\DocumentoMantenimientoRequest;
 use App\Models\DocumentoMantenimiento;
-use App\Models\AgendamientoMantenimiento;
 use App\Models\Unidad;
+use App\Services\BitacoraService;
 use App\Services\DocumentoService;
+use App\Support\Catalogos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use PhpOffice\PhpWord\IOFactory;
 use PhpOffice\PhpWord\PhpWord;
-use Illuminate\Support\Facades\Log;
 
 class DocumentoMantenimientoController extends Controller
 {
-    protected DocumentoService $documentoService;
-
-    public function __construct(DocumentoService $documentoService)
-    {
-        $this->documentoService = $documentoService;
-    }
+    public function __construct(private readonly DocumentoService $documentos) {}
 
     public function index(Request $request)
     {
-        $query = DocumentoMantenimiento::with('asignacion.operador', 'asignacion.unidad');
-
-        if ($request->filled('unidad')) {
-            $query->whereHas('asignacion.unidad', fn($q) => $q->where('numero_economico', 'LIKE', "%{$request->unidad}%"));
-        }
-
-        $documentos = $query->orderBy('created_at', 'desc')->paginate(20);
+        $documentos = DocumentoMantenimiento::with(['unidad.zona', 'operador'])
+            ->when($request->unidad, fn ($q, $u) => $q->whereHas('unidad', fn ($w) => $w->where('numero_economico', 'ILIKE', "%{$u}%")))
+            ->when($request->desde, fn ($q, $d) => $q->whereDate('fecha', '>=', $d))
+            ->when($request->hasta, fn ($q, $h) => $q->whereDate('fecha', '<=', $h))
+            ->latest('fecha')->latest('id')
+            ->paginate(20)->withQueryString();
 
         return view('admin.documentos.mantenimiento.index', compact('documentos'));
     }
 
-    public function show($id)
+    public function create(Request $request)
     {
-        $documento = DocumentoMantenimiento::with(['asignacion.unidad.zona', 'asignacion.operador'])->findOrFail($id);
+        $documento = new DocumentoMantenimiento(['fecha' => today(), 'hora' => now()->format('H:i'), 'vigente' => true]);
+        if ($unidad = Unidad::findByHashid($request->unidad)) {
+            $documento->unidad_id = $unidad->id;
+        }
+
+        return view('admin.documentos.mantenimiento.form', $this->datosFormulario($documento));
+    }
+
+    public function store(DocumentoMantenimientoRequest $request)
+    {
+        $documento = $this->documentos->guardarMantenimiento($request->validated());
+
+        return redirect()->route('admin.documentos-mantenimiento.show', $documento)->with('success', 'Documento de mantenimiento registrado.');
+    }
+
+    public function show(DocumentoMantenimiento $documento)
+    {
+        $documento->load(['unidad.zona', 'operador', 'usuario', 'firmas']);
 
         return view('admin.documentos.mantenimiento.show', compact('documento'));
     }
 
-    public function create(Request $request)
+    public function edit(DocumentoMantenimiento $documento)
     {
-        $unidades = Unidad::with(['zona'])
-            ->where('activo', true)
-            ->orderBy('numero_economico')
-            ->get();
+        return view('admin.documentos.mantenimiento.form', $this->datosFormulario($documento));
+    }
 
-        $unidadSeleccionada = null;
-        if ($request->has('unidad')) {
-            $unidadSeleccionada = Unidad::with(['zona', 'asignacionVigente.operador'])
-                ->find($request->unidad);
+    public function update(DocumentoMantenimientoRequest $request, DocumentoMantenimiento $documento)
+    {
+        $this->documentos->guardarMantenimiento($request->validated(), $documento);
+
+        return redirect()->route('admin.documentos-mantenimiento.show', $documento)->with('success', 'Documento actualizado.');
+    }
+
+    public function destroy(DocumentoMantenimiento $documento)
+    {
+        BitacoraService::registrar('documento_mantenimiento.eliminado', $documento);
+        $documento->firmas()->delete();
+        $documento->delete();
+
+        return redirect()->route('admin.documentos-mantenimiento.index')->with('success', 'Documento eliminado.');
+    }
+
+    public function pdf(DocumentoMantenimiento $documento)
+    {
+        $documento->load(['unidad.zona', 'operador', 'firmas']);
+
+        return Pdf::loadView('admin.documentos.plantilla_mantenimiento', compact('documento'))
+            ->setPaper('letter')
+            // isRemoteEnabled desactivado: evita que el PDF descargue recursos externos (SSRF)
+            ->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans'])
+            ->download("mantenimiento_{$documento->folio}.pdf");
+    }
+
+    public function word(DocumentoMantenimiento $documento)
+    {
+        $documento->load(['unidad.zona', 'operador']);
+        $word = new PhpWord;
+        $s = $word->addSection();
+        $s->addTitle('Formato de servicio y analisis de equipos tecnologicos', 1);
+        $filas = [
+            'Folio' => $documento->folio,
+            'Unidad' => $documento->unidad?->etiqueta,
+            'Zona' => $documento->unidad?->zona?->nombre,
+            'Operador' => $documento->operador ? "{$documento->operador->nombre_completo} ({$documento->operador->clave_operador})" : 'Sin operador',
+            'Tecnologia reportada' => implode(', ', $documento->tecnologias),
+            'Estado de camaras' => $documento->estado_camaras,
+            'Prueba de barras' => $documento->prueba_barras,
+            'Comentarios' => $documento->comentarios,
+            'Fecha y hora' => $documento->fecha?->format('d/m/Y') . ' ' . substr((string) $documento->hora, 0, 5),
+            'Adeudos' => "{$documento->veces_adeudo} {$documento->observaciones_adeudo}",
+        ];
+        foreach ($filas as $k => $v) {
+            $s->addText(htmlspecialchars("{$k}: " . ($v ?? '-')));
         }
-
-        return view('admin.documentos.mantenimiento.create', compact('unidades', 'unidadSeleccionada'));
-    }
-
-    public function store(Request $request)
-    {
-        Log::info('=== INTENTO DE GUARDAR MANTENIMIENTO ===');
-        Log::info('Datos recibidos:', $request->all());
-
-        try {
-            $validated = $request->validate([
-                'unidad_id' => 'required|exists:unidades,id',
-                'zona' => 'required|in:reyes,apaxco,citrus',
-                'tecnologia' => 'required|array',
-                'tecnologia.*' => 'string',
-                'camara1' => 'sometimes|boolean',
-                'camara2' => 'sometimes|boolean',
-                'camara3' => 'sometimes|boolean',
-                'camara4' => 'sometimes|boolean',
-                'prueba_barras' => 'nullable|in:SI,NO',
-                'comentarios' => 'nullable|string',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-            ]);
-
-            $unidad = Unidad::with('zona')->findOrFail($validated['unidad_id']);
-
-            $asignacion = AsignacionOperadorUnidad::where('unidad_id', $validated['unidad_id'])
-                ->where('vigente', true)
-                ->first();
-
-            if (!$asignacion) {
-                $asignacion = AsignacionOperadorUnidad::create([
-                    'unidad_id' => $validated['unidad_id'],
-                    'operador_id' => null,
-                    'fecha_inicio' => now(),
-                    'vigente' => true,
-                ]);
-            }
-
-            $tecnologias = implode(',', $validated['tecnologia']);
-
-            $camaras = [];
-            if ($request->has('camara1')) $camaras[] = 'Camara 1 OK';
-            if ($request->has('camara2')) $camaras[] = 'Camara 2 OK';
-            if ($request->has('camara3')) $camaras[] = 'Camara 3 OK';
-            if ($request->has('camara4')) $camaras[] = 'Camara 4 OK';
-            $estadoCamaras = !empty($camaras) ? implode(', ', $camaras) : 'Sin camaras funcionales';
-
-            $vigente = $request->has('vigente') && $request->input('vigente') !== 'off';
-
-            $documento = DocumentoMantenimiento::create([
-                'asignacion_id' => $asignacion->id,
-                'rol' => $validated['zona'],
-                'tecnologia_reportada' => $tecnologias,
-                'estado_camaras' => $estadoCamaras,
-                'prueba_barras' => $validated['prueba_barras'] ?? null,
-                'comentarios' => $validated['comentarios'] ?? null,
-                'fecha' => $validated['fecha'],
-                'hora' => $validated['hora'],
-                'vigente' => $vigente,
-            ]);
-
-            Log::info('Documento de mantenimiento creado con ID: ' . $documento->id);
-
-            // FINALIZAR AGENDAMIENTOS PENDIENTES DE LA UNIDAD
-            $this->finalizarAgendamientosUnidad($validated['unidad_id']);
-
-            return redirect()->route('admin.documentos-mantenimiento.index')
-                ->with('success', 'Documento de mantenimiento creado exitosamente.');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Error de validacion: ' . json_encode($e->errors()));
-            throw $e;
-        } catch (\Exception $e) {
-            Log::error('Error al crear documento de mantenimiento: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-
-            return back()->withErrors(['error' => 'Error al crear el documento: ' . $e->getMessage()])
-                ->withInput();
+        $s->addTextBreak(2);
+        foreach (DocumentoMantenimiento::FIRMAS as $etiqueta) {
+            $s->addText('______________________________');
+            $s->addText($etiqueta, ['size' => 8]);
         }
+        $tmp = tempnam(sys_get_temp_dir(), 'mto_');
+        IOFactory::createWriter($word, 'Word2007')->save($tmp);
+
+        return response()->download($tmp, "mantenimiento_{$documento->folio}.docx")->deleteFileAfterSend();
     }
 
-    /**
-     * Finalizar agendamientos pendientes de una unidad al registrar mantenimiento
-     */
-    private function finalizarAgendamientosUnidad($unidadId)
+    private function datosFormulario(DocumentoMantenimiento $documento): array
     {
-        $agendamientos = AgendamientoMantenimiento::where('unidad_id', $unidadId)
-            ->where('estado', 'pendiente')
-            ->get();
-
-        foreach ($agendamientos as $agendamiento) {
-            $agendamiento->update([
-                'estado' => 'cumplido',
-                'fecha_cumplimiento' => now()->toDateString(),
-                'observaciones' => ($agendamiento->observaciones ?? '') . ' - Finalizado automaticamente al registrar mantenimiento',
-            ]);
-            Log::info("Agendamiento ID: {$agendamiento->id} finalizado automaticamente");
-        }
-
-        return count($agendamientos);
-    }
-
-    public function edit($id)
-    {
-        $documento = DocumentoMantenimiento::findOrFail($id);
-        $asignaciones = AsignacionOperadorUnidad::with('operador', 'unidad')
-            ->where('vigente', true)
-            ->get();
-
-        $tecnologiaArray = explode(',', $documento->tecnologia_reportada ?? '');
-
-        return view('admin.documentos.mantenimiento.edit', compact('documento', 'asignaciones', 'tecnologiaArray'));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $documento = DocumentoMantenimiento::findOrFail($id);
-
-        try {
-            $validated = $request->validate([
-                'asignacion_id' => 'required|exists:asignacion_operador_unidad,id',
-                'rol' => 'required|string|max:50',
-                'tecnologia' => 'required|array',
-                'tecnologia.*' => 'string',
-                'prueba_barras' => 'nullable|in:SI,NO',
-                'comentarios' => 'nullable|string',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'veces_adeudo' => 'nullable|integer',
-                'observaciones_adeudo' => 'nullable|string',
-                'vigente' => 'sometimes|boolean',
-            ]);
-
-            $tecnologia = implode(',', $validated['tecnologia']);
-
-            $documento->update([
-                'asignacion_id' => $validated['asignacion_id'],
-                'rol' => $validated['rol'],
-                'tecnologia_reportada' => $tecnologia,
-                'prueba_barras' => $validated['prueba_barras'] ?? null,
-                'comentarios' => $validated['comentarios'] ?? null,
-                'fecha' => $validated['fecha'],
-                'hora' => $validated['hora'],
-                'veces_adeudo' => $validated['veces_adeudo'] ?? 0,
-                'observaciones_adeudo' => $validated['observaciones_adeudo'] ?? null,
-                'vigente' => $request->has('vigente'),
-            ]);
-
-            Log::info('Documento de mantenimiento actualizado ID: ' . $id);
-
-            return redirect()->route('admin.documentos-mantenimiento.index')
-                ->with('success', 'Documento de mantenimiento actualizado exitosamente.');
-        } catch (\Exception $e) {
-            Log::error('Error al actualizar documento: ' . $e->getMessage());
-
-            return back()->withErrors(['error' => 'Error al actualizar: ' . $e->getMessage()])
-                ->withInput();
-        }
-    }
-
-    public function destroy($id)
-    {
-        try {
-            $documento = DocumentoMantenimiento::findOrFail($id);
-            $documento->delete();
-
-            Log::info('Documento de mantenimiento eliminado ID: ' . $id);
-
-            return redirect()->route('admin.documentos-mantenimiento.index')
-                ->with('success', 'Documento de mantenimiento eliminado exitosamente.');
-        } catch (\Exception $e) {
-            Log::error('Error al eliminar documento: ' . $e->getMessage());
-
-            return back()->withErrors(['error' => 'Error al eliminar: ' . $e->getMessage()]);
-        }
-    }
-
-    public function exportarPdf($id)
-    {
-        $documento = DocumentoMantenimiento::with(['asignacion.unidad.zona', 'asignacion.operador'])
-            ->findOrFail($id);
-
-        Log::info('Exportando PDF del documento ID: ' . $id);
-        Log::info('Ruta de la vista: ' . resource_path('views/admin/documentos/plantilla_mantenimiento.blade.php'));
-
-        $pdf = Pdf::loadView('admin.documentos.plantilla_mantenimiento', compact('documento'))
-            ->setPaper('letter', 'portrait')
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'DejaVu Sans',
-            ]);
-
-        return $pdf->download("mantenimiento_MTO-" . str_pad($documento->id, 6, '0', STR_PAD_LEFT) . ".pdf");
-    }
-
-    public function exportarWord($id)
-    {
-        $documento = DocumentoMantenimiento::with(['asignacion.unidad.zona', 'asignacion.operador'])
-            ->findOrFail($id);
-
-        $phpWord = new PhpWord;
-        $section = $phpWord->addSection();
-
-        $section->addTitle('Formato de Mantenimiento', 1);
-        $section->addText("Unidad: {$documento->asignacion->unidad->numero_economico} - {$documento->asignacion->unidad->nombre_unidad}");
-        $section->addText("Rol: {$documento->rol}");
-        $section->addText("Operador: {$documento->asignacion->operador->nombre_completo}");
-        $section->addText("Clave: {$documento->asignacion->operador->clave_operador}");
-        $section->addText("Tecnologia reportada: {$documento->tecnologia_reportada}");
-        $section->addText("Prueba barras: {$documento->prueba_barras}");
-        $section->addText("Comentarios: {$documento->comentarios}");
-        $section->addText("Fecha: {$documento->fecha} Hora: {$documento->hora}");
-        $section->addText("Adeudos: {$documento->veces_adeudo} - {$documento->observaciones_adeudo}");
-
-        $section->addTextBreak(2);
-        $section->addText('______________________');
-        $section->addText('Firma del operador', ['size' => 8]);
-        $section->addText('______________________');
-        $section->addText('Firma del Ing. a cargo', ['size' => 8]);
-        $section->addText('______________________');
-        $section->addText('Firma de tabulacion', ['size' => 8]);
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'word_');
-        $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
-        $objWriter->save($tempFile);
-
-        return response()->download($tempFile, "mantenimiento_{$documento->id}.docx")
-            ->deleteFileAfterSend(true);
+        return [
+            'documento' => $documento,
+            'unidades' => Catalogos::unidades(),
+            'operadores' => Catalogos::operadores(),
+            'tecnologias' => DocumentoMantenimiento::TECNOLOGIAS,
+        ];
     }
 }

@@ -1,56 +1,44 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
-    <title>Conformidad de Capacitación</title>
-    <style>
-        body { font-family: Arial, sans-serif; font-size: 12px; }
-        .container { width: 100%; margin: auto; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .info { width: 100%; border-collapse: collapse; }
-        .info td { padding: 6px; border: 1px solid #000; vertical-align: top; }
-        .info td.label { font-weight: bold; width: 30%; background: #f2f2f2; }
-        .firma { margin-top: 30px; width: 100%; }
-        .firma td { text-align: center; vertical-align: bottom; width: 50%; }
-        .firma .linea { border-top: 1px solid #000; width: 80%; margin: 8px auto 0 auto; }
-        .firma img { max-width: 150px; max-height: 50px; }
-        footer { text-align: center; font-size: 10px; margin-top: 20px; }
-    </style>
+<meta charset="UTF-8">
+<style>
+    @page { margin: 28px 32px; }
+    body { font-family: "DejaVu Sans", sans-serif; font-size: 11px; color: #1b2333; }
+    .head { border-bottom: 3px solid #1d5fad; padding-bottom: 8px; margin-bottom: 14px; }
+    .marca { font-size: 22px; font-weight: bold; font-style: italic; color: #1d5fad; }
+    .franja { height: 4px; background: #e8a814; width: 90px; margin-top: 2px; }
+    .titulo { font-size: 14px; font-weight: bold; margin: 0; }
+    .folio { float: right; text-align: right; color: #4a5468; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    th, td { border: 1px solid #e3e7ee; padding: 6px 8px; text-align: left; }
+    th { background: #eaf1fa; color: #164a87; width: 30%; }
+    .texto { line-height: 1.6; margin: 14px 0 24px; }
+    .firmas td { text-align: center; height: 110px; vertical-align: bottom; border: 0; }
+    .firmas img { max-height: 70px; max-width: 180px; }
+    .linea { border-top: 1px solid #1b2333; padding-top: 4px; font-size: 10px; }
+</style>
 </head>
 <body>
-<div class="container">
-    <div class="header">
-        <h2>Conformidad de Capacitación</h2>
-    </div>
-
-    <table class="info">
-        <tr><td class="label">Unidad:</td><td>{{ $documento->asignacion->unidad->numero_economico }} - {{ $documento->asignacion->unidad->nombre_unidad }}</td></tr>
-        <tr><td class="label">Zona:</td><td>{{ $documento->asignacion->unidad->zona->nombre ?? 'N/A' }}</td></tr>
-        <tr><td class="label">Operador:</td><td>{{ $documento->asignacion->operador->nombre_completo }}</td></tr>
-        <tr><td class="label">Clave operador:</td><td>{{ $documento->asignacion->operador->clave_operador }}</td></tr>
-        <tr><td class="label">Fecha / Hora:</td><td>{{ \Carbon\Carbon::parse($documento->fecha)->format('d/m/Y') }} - {{ $documento->hora }}</td></tr>
-    </table>
-
-    <table class="firma">
-        <tr>
-            <td style="width:50%">
-                @if($documento->firma_operador)
-                    <img src="data:image/png;base64,{{ $documento->firma_operador }}" alt="Firma operador">
-                @endif
-                <div class="linea"></div>
-                Firma del operador
-            </td>
-            <td style="width:50%">
-                @if($documento->firma_ing)
-                    <img src="data:image/png;base64,{{ $documento->firma_ing }}" alt="Firma Ing.">
-                @endif
-                <div class="linea"></div>
-                Firma del Ing. a cargo
-            </td>
-        </tr>
-    </table>
-
-    <footer>Documento generado por sistema Lusa - {{ now()->format('d/m/Y H:i') }}</footer>
+<div class="head">
+    <div class="folio">Folio <strong>{{ $documento->folio }}</strong><br>{{ $documento->fecha?->format('d/m/Y') }} {{ substr((string) $documento->hora, 0, 5) }}</div>
+    <div class="marca">LUSA</div><div class="franja"></div>
+    <p class="titulo">Conformidad de capacitacion</p>
 </div>
+<table>
+    <tr><th>Operador</th><td>{{ $documento->operador?->nombre_completo ?? '-' }} ({{ $documento->operador?->clave_operador }})</td></tr>
+    <tr><th>Unidad</th><td>{{ $documento->unidad?->etiqueta }}</td></tr>
+    <tr><th>Zona</th><td>{{ ucfirst($documento->unidad?->zona?->nombre ?? '-') }}</td></tr>
+    <tr><th>Tipo de capacitacion</th><td>{{ $documento->tipo_capacitacion ?? '-' }}</td></tr>
+    <tr><th>Instructor</th><td>{{ $documento->instructor ?? '-' }}</td></tr>
+    <tr><th>Duracion</th><td>{{ $documento->duracion_horas ? $documento->duracion_horas . ' horas' : '-' }}</td></tr>
+</table>
+<p class="texto">El operador manifiesta haber recibido la capacitacion descrita y estar conforme con la misma.
+@if($documento->observaciones)<br>Observaciones: {{ $documento->observaciones }}@endif</p>
+<table class="firmas"><tr>
+    @foreach (\App\Models\DocumentoCapacitacion::FIRMAS as $tipo => $etiqueta)
+        <td>@if($f = $documento->firma($tipo))<img src="{{ $f->data_uri }}" alt=""><br>@endif<div class="linea">{{ $etiqueta }}</div></td>
+    @endforeach
+</tr></table>
 </body>
 </html>

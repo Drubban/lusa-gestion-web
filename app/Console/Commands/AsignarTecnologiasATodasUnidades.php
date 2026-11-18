@@ -99,7 +99,7 @@ class AsignarTecnologiasATodasUnidades extends Command
                         'tipo' => $tipo,
                         'nombre' => "{$tipo} - {$unidad->numero_economico}",
                         'activo' => true,
-                        'created_by' => 1, // Usuario Drubban
+                        'created_by' => null,
                     ]);
 
                     // Crear datos especificos segun tipo (con valores por defecto)

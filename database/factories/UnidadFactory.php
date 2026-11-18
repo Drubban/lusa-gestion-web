@@ -20,7 +20,6 @@ class UnidadFactory extends Factory
         return [
             'numero_economico' => $this->faker->unique()->numerify('ECO####'),
             'nombre_unidad' => $this->faker->word,
-            'codigo_qr' => $this->faker->unique()->uuid,
             'activo' => true
         ];
     }

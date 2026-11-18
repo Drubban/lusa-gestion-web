@@ -1,120 +1,70 @@
 <?php
 
-use App\Http\Controllers\Admin\AjusteController;
+use App\Http\Controllers\Admin;
+use App\Http\Controllers\Auth\LoginController;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\UnidadController;
-use App\Http\Controllers\Admin\OperadorController;
-use App\Http\Controllers\Admin\DocumentoMantenimientoController;
-use App\Http\Controllers\Admin\DocumentoCapacitacionController;
-use App\Http\Controllers\Admin\MovimientoController;
-use App\Http\Controllers\Admin\UsuarioDepartamentoController;
-use App\Http\Controllers\Admin\QRController;
-use App\Http\Controllers\Admin\ImportacionController;
-use App\Http\Controllers\Admin\InventarioController;
-use App\Http\Controllers\Admin\MantenimientoDashboardController;
-use App\Http\Controllers\Admin\TecnologiaController;
-use App\Http\Controllers\Admin\AgendamientoMantenimientoController;
-use App\Http\Controllers\Admin\ExportacionMantenimientoController;
-use App\Http\Controllers\Admin\RevisionOptocontrolController;
 
-Route::prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+Route::redirect('/', '/admin');
 
-    // Recursos principales
-    Route::resource('unidades', UnidadController::class);
-    Route::resource('operadores', OperadorController::class);
-    Route::resource('documentos-mantenimiento', DocumentoMantenimientoController::class);
-    Route::resource('documentos-capacitacion', DocumentoCapacitacionController::class);
-    Route::resource('movimientos', MovimientoController::class);
-    Route::resource('usuarios-app', UsuarioDepartamentoController::class);
-    Route::resource('inventario', InventarioController::class);
-    Route::resource('ajustes', AjusteController::class);
-    Route::resource('tecnologias', TecnologiaController::class);
+// Autenticacion del panel
+Route::middleware('guest')->group(function () {
+    Route::get('login', [LoginController::class, 'create'])->name('login');
+    Route::post('login', [LoginController::class, 'store'])->middleware('throttle:10,1')->name('login.store');
+});
+Route::post('logout', [LoginController::class, 'destroy'])->middleware('auth')->name('logout');
 
-    Route::resource('agendamientos', AgendamientoMantenimientoController::class);
-    Route::get('agendamientos/{id}/marcar-cumplido', [AgendamientoMantenimientoController::class, 'marcarCumplido'])->name('agendamientos.marcar-cumplido');
-    Route::post('agendamientos/{id}/reagendar', [AgendamientoMantenimientoController::class, 'reagendar'])->name('agendamientos.reagendar');
+// Todo el panel requiere sesion y rol admin/supervisor (antes estaba abierto a cualquiera)
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'panel'])->group(function () {
+    Route::get('/', Admin\DashboardController::class)->name('dashboard');
 
-    // Rutas para obtener datos via AJAX (ajustes)
-    Route::get('ajustes/operadores', [AjusteController::class, 'getOperadores'])->name('ajustes.operadores');
-    Route::get('ajustes/unidades', [AjusteController::class, 'getUnidades'])->name('ajustes.unidades');
+    Route::resource('unidades', Admin\UnidadController::class)->parameters(['unidades' => 'unidad']);
+    Route::post('unidades/{unidad}/regenerar-token', [Admin\UnidadController::class, 'regenerarToken'])->name('unidades.regenerar-token');
 
-    // Rutas específicas de unidades
-    Route::prefix('unidades')->name('unidades.')->group(function () {
-        Route::get('regenerar-token/{unidad}', [UnidadController::class, 'regenerarToken'])->name('regenerar-token');
-    });
+    Route::resource('operadores', Admin\OperadorController::class)->parameters(['operadores' => 'operador']);
+    Route::resource('movimientos', Admin\MovimientoController::class)->parameters(['movimientos' => 'movimiento']);
 
-    // Obtener operador actual de una unidad (AJAX)
-    Route::get('unidades/{id}/operador-actual', function ($id) {
-        $unidad = \App\Models\Unidad::with('asignacionVigente.operador')->findOrFail($id);
-        $operador = $unidad->asignacionVigente->operador ?? null;
-        return response()->json(['operador' => $operador]);
-    })->name('unidades.operador-actual');
+    Route::resource('documentos-mantenimiento', Admin\DocumentoMantenimientoController::class)->parameters(['documentos-mantenimiento' => 'documento']);
+    Route::get('documentos-mantenimiento/{documento}/pdf', [Admin\DocumentoMantenimientoController::class, 'pdf'])->name('documentos-mantenimiento.pdf');
+    Route::get('documentos-mantenimiento/{documento}/word', [Admin\DocumentoMantenimientoController::class, 'word'])->name('documentos-mantenimiento.word');
+
+    Route::resource('documentos-capacitacion', Admin\DocumentoCapacitacionController::class)->parameters(['documentos-capacitacion' => 'documento']);
+    Route::get('documentos-capacitacion/{documento}/pdf', [Admin\DocumentoCapacitacionController::class, 'pdf'])->name('documentos-capacitacion.pdf');
+
+    Route::resource('inventario', Admin\InventarioController::class)->parameters(['inventario' => 'inventario']);
+    Route::resource('ajustes', Admin\AjusteController::class)->parameters(['ajustes' => 'ajuste']);
+    Route::resource('tecnologias', Admin\TecnologiaController::class)->parameters(['tecnologias' => 'tecnologia']);
+
+    Route::resource('agendamientos', Admin\AgendamientoController::class)->except('show')->parameters(['agendamientos' => 'agendamiento']);
+    Route::post('agendamientos/{agendamiento}/cumplir', [Admin\AgendamientoController::class, 'cumplir'])->name('agendamientos.cumplir');
+    Route::post('agendamientos/{agendamiento}/no-presentado', [Admin\AgendamientoController::class, 'noPresentado'])->name('agendamientos.no-presentado');
+    Route::post('agendamientos/{agendamiento}/reagendar', [Admin\AgendamientoController::class, 'reagendar'])->name('agendamientos.reagendar');
 
     Route::prefix('mantenimiento')->name('mantenimiento.')->group(function () {
-        Route::get('/', [MantenimientoDashboardController::class, 'index'])->name('dashboard');
-        Route::get('/unidad/{id}', [MantenimientoDashboardController::class, 'show'])->name('detalle');
-        Route::post('/agendar-masivo', [MantenimientoDashboardController::class, 'agendarMasivo'])->name('agendar-masivo');
+        Route::get('/', [Admin\MantenimientoController::class, 'index'])->name('index');
+        Route::get('unidad/{unidad}', [Admin\MantenimientoController::class, 'show'])->name('detalle');
+        Route::post('agendar-masivo', [Admin\MantenimientoController::class, 'agendarMasivo'])->name('agendar-masivo');
     });
 
-    // Rutas para QR
+    Route::get('revisiones-optocontrol/dashboard', [Admin\RevisionOptocontrolController::class, 'dashboard'])->name('revisiones-optocontrol.dashboard');
+    Route::resource('revisiones-optocontrol', Admin\RevisionOptocontrolController::class)->parameters(['revisiones-optocontrol' => 'revision']);
+
     Route::prefix('qr')->name('qr.')->group(function () {
-        Route::get('exportar', [QRController::class, 'exportar'])->name('exportar');
-        Route::get('generar/{unidad}', [QRController::class, 'generar'])->name('generar');
-        Route::get('descargar-pdf', [QRController::class, 'descargarTodos'])->name('descargar-pdf');
+        Route::get('/', [Admin\QRController::class, 'index'])->name('index');
+        Route::get('imprimir', [Admin\QRController::class, 'imprimir'])->name('imprimir');
     });
 
-    // Rutas de exportación para documentos de mantenimiento
-    Route::prefix('documentos-mantenimiento')->name('documentos-mantenimiento.')->group(function () {
-        Route::get('{id}/pdf', [DocumentoMantenimientoController::class, 'exportarPdf'])->name('exportar-pdf');
-        Route::get('{id}/word', [DocumentoMantenimientoController::class, 'exportarWord'])->name('exportar-word');
+    Route::get('exportar/agendamientos', [Admin\ExportacionController::class, 'agendamientos'])->name('exportar.agendamientos');
+
+    // Solo administradores
+    Route::middleware('admin')->group(function () {
+        Route::resource('usuarios-app', Admin\UsuarioController::class)->parameters(['usuarios-app' => 'usuario']);
+
+        Route::prefix('importar')->name('importar.')->group(function () {
+            Route::get('/', [Admin\ImportacionController::class, 'index'])->name('index');
+            Route::post('unidades', [Admin\ImportacionController::class, 'unidades'])->name('unidades');
+            Route::post('operadores', [Admin\ImportacionController::class, 'operadores'])->name('operadores');
+            Route::post('tecnologias', [Admin\ImportacionController::class, 'tecnologias'])->name('tecnologias');
+            Route::get('plantilla-tecnologias', [Admin\ImportacionController::class, 'plantillaTecnologias'])->name('plantilla.tecnologias');
+        });
     });
-
-    // Rutas de exportación para documentos de capacitación
-    Route::prefix('documentos-capacitacion')->name('documentos-capacitacion.')->group(function () {
-        Route::get('{id}/pdf', [DocumentoCapacitacionController::class, 'exportarPdf'])->name('exportar-pdf');
-    });
-
-    // Rutas de importación
-    Route::prefix('importar')->name('importar.')->group(function () {
-        Route::get('/', [ImportacionController::class, 'index'])->name('index');
-        Route::post('unidades', [ImportacionController::class, 'importarUnidades'])->name('unidades');
-        Route::post('operadores', [ImportacionController::class, 'importarOperadores'])->name('operadores');
-        Route::post('tecnologias', [ImportacionController::class, 'importarTecnologias'])->name('tecnologias');
-        Route::get('plantilla-tecnologias', [ImportacionController::class, 'descargarPlantillaTecnologias'])->name('plantilla.tecnologias');
-    });
-
-    Route::prefix('exportar-mantenimientos')->name('exportar.mantenimientos.')->group(function () {
-        Route::get('/csv', [ExportacionMantenimientoController::class, 'exportarCSV'])->name('csv');
-        Route::get('/excel', [ExportacionMantenimientoController::class, 'exportarExcel'])->name('excel');
-        Route::get('/todos', [ExportacionMantenimientoController::class, 'exportarTodos'])->name('todos');
-    });
-
-    Route::prefix('revisiones-optocontrol')->name('revisiones-optocontrol.')->group(function () {
-        Route::get('/', [RevisionOptocontrolController::class, 'index'])->name('index');
-        Route::get('/dashboard', [RevisionOptocontrolController::class, 'dashboard'])->name('dashboard');
-        Route::get('/create', [RevisionOptocontrolController::class, 'create'])->name('create');
-        Route::post('/', [RevisionOptocontrolController::class, 'store'])->name('store');
-
-        // AJAX (debe ir antes del {id})
-        Route::get('/unidad-data/{id}', [RevisionOptocontrolController::class, 'getUnidadData'])->name('unidad-data');
-
-        Route::get('/{id}', [RevisionOptocontrolController::class, 'show'])->name('show');
-        Route::get('/{id}/edit', [RevisionOptocontrolController::class, 'edit'])->name('edit');
-        Route::put('/{id}', [RevisionOptocontrolController::class, 'update'])->name('update');
-        Route::delete('/{id}', [RevisionOptocontrolController::class, 'destroy'])->name('destroy');
-    });
-});
-
-// Ruta pública para ver PDFs (sin autenticación, si es necesario)
-Route::get('documentos-mantenimiento/{id}/pdf', [DocumentoMantenimientoController::class, 'exportarPdf'])->name('documentos-mantenimiento.exportar-pdf');
-Route::get('documentos-capacitacion/{id}/pdf', [DocumentoCapacitacionController::class, 'exportarPdf'])->name('documentos-capacitacion.exportar-pdf');
-
-Route::get('/csrf-token', function () {
-    return response()->json([
-        'token' => csrf_token(),
-        'session_token' => session()->token(),
-        'session_has_token' => session()->has('_token'),
-    ]);
 });

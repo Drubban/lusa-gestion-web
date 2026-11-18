@@ -4,29 +4,22 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Unidad;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;   // ← Importante
-use Barryvdh\DomPDF\Facade\Pdf;               // ← Para PDF (si usas laravel-dompdf)
-use Illuminate\Http\Request;
 
+/**
+ * Codigos QR de las unidades. El QR se dibuja en el navegador (qrcode-generator)
+ * para no depender de paquetes PHP ni de la extension imagick.
+ * El QR contiene solo el token aleatorio de la unidad, nunca su id.
+ */
 class QRController extends Controller
 {
-    public function exportar()
+    public function index()
     {
-        $unidades = Unidad::where('activo', true)->get();
-        return view('admin.qr.exportar', compact('unidades'));
+        return view('admin.qr.index', ['unidades' => Unidad::activas()->with('zona')->get()]);
     }
 
-    public function generar($id)
+    /** Hoja lista para imprimir o guardar como PDF desde el navegador. */
+    public function imprimir()
     {
-        $unidad = Unidad::findOrFail($id);
-        $qr = QrCode::format('png')->size(300)->generate($unidad->token_qr);
-        return response($qr)->header('Content-Type', 'image/png');
-    }
-
-    public function descargarTodos()
-    {
-        $unidades = Unidad::where('activo', true)->get();
-        $pdf = Pdf::loadView('admin.qr.pdf', compact('unidades'))->setPaper('a4', 'portrait');
-        return $pdf->download('codigos_qr_lusa.pdf');
+        return view('admin.qr.imprimir', ['unidades' => Unidad::activas()->with('zona')->get()]);
     }
 }

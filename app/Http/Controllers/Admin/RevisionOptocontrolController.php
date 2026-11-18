@@ -2,364 +2,139 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\DispositivoRevision;
+use App\Enums\EstadoRevision;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RevisionRequest;
 use App\Models\RevisionOptocontrol;
 use App\Models\Unidad;
-use Carbon\Carbon;
+use App\Services\BitacoraService;
+use App\Support\Catalogos;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class RevisionOptocontrolController extends Controller
 {
     public function index(Request $request)
     {
-        $query = RevisionOptocontrol::with(['unidad', 'creador']);
+        $filtros = $this->filtros($request);
+        $revisiones = RevisionOptocontrol::with('unidad')
+            ->filtrar($filtros)
+            ->latest('fecha_reporte')->latest('id')
+            ->paginate(25)->withQueryString();
 
-        if ($request->filled('disp')) {
-            $query->where('disp', $request->disp);
-        }
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-        if ($request->filled('unidad_id')) {
-            $query->where('unidad_id', $request->unidad_id);
-        }
-        if ($request->filled('fecha_desde')) {
-            $query->whereDate('fecha_reporte', '>=', $request->fecha_desde);
-        }
-        if ($request->filled('fecha_hasta')) {
-            $query->whereDate('fecha_reporte', '<=', $request->fecha_hasta);
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('problema', 'ILIKE', "%{$search}%")
-                  ->orWhere('solucion', 'ILIKE', "%{$search}%")
-                  ->orWhere('nombre_unidad', 'ILIKE', "%{$search}%")
-                  ->orWhere('ruta', 'ILIKE', "%{$search}%")
-                  ->orWhere('responsable', 'ILIKE', "%{$search}%");
-            });
-        }
+        $stats = RevisionOptocontrol::selectRaw("
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE status = 'pendiente') as pendientes,
+            COUNT(*) FILTER (WHERE status = 'en_proceso') as en_proceso,
+            COUNT(*) FILTER (WHERE status = 'resuelto') as resueltos,
+            COUNT(*) FILTER (WHERE fecha_reporte >= ?) as ultimos30
+        ", [now()->subDays(30)->toDateString()])->first();
 
-        $revisiones = $query->orderBy('fecha_reporte', 'desc')
-                            ->orderBy('created_at', 'desc')
-                            ->paginate(20)
-                            ->withQueryString();
+        return view('admin.revisiones.index', [
+            'revisiones' => $revisiones,
+            'stats' => $stats,
+            'dispositivos' => DispositivoRevision::opciones(),
+            'estados' => EstadoRevision::opciones(),
+            'unidades' => Catalogos::unidades(),
+        ]);
+    }
 
-        // Estadisticas para tarjetas superiores
-        $stats = [
-            'total'      => RevisionOptocontrol::count(),
-            'pendientes' => RevisionOptocontrol::where('status', 'pendiente')->count(),
-            'resueltos'  => RevisionOptocontrol::where('status', 'resuelto')->count(),
-            'mes'        => RevisionOptocontrol::whereMonth('fecha_reporte', now()->month)
-                                                ->whereYear('fecha_reporte', now()->year)
-                                                ->count(),
-        ];
+    public function dashboard(Request $request)
+    {
+        $filtros = $this->filtros($request);
+        $base = fn () => RevisionOptocontrol::filtrar($filtros);
 
-        $unidades = Unidad::where('activo', true)
-                          ->orderBy('numero_economico')
-                          ->get(['id', 'numero_economico', 'nombre_unidad', 'zona_id']);
-
-        $disp_opciones = RevisionOptocontrol::DISP_OPCIONES;
-        $status_opciones = RevisionOptocontrol::STATUS_OPCIONES;
-
-        return view('admin.revisiones-optocontrol.index', compact(
-            'revisiones',
-            'unidades',
-            'disp_opciones',
-            'status_opciones',
-            'stats'
-        ));
+        return view('admin.revisiones.dashboard', [
+            'porDispositivo' => $base()->selectRaw('disp, COUNT(*) as total')->groupBy('disp')->pluck('total', 'disp'),
+            'porEstado' => $base()->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
+            'porRuta' => $base()->whereNotNull('ruta')->selectRaw('ruta, COUNT(*) as total')->groupBy('ruta')->orderByDesc('total')->limit(8)->pluck('total', 'ruta'),
+            'topUnidades' => $base()->join('unidades', 'unidades.id', '=', 'revisiones_optocontrol.unidad_id')
+                ->selectRaw('unidades.numero_economico, COUNT(*) as total')->groupBy('unidades.numero_economico')
+                ->orderByDesc('total')->limit(5)->pluck('total', 'numero_economico'),
+            'tendencia' => RevisionOptocontrol::where('fecha_reporte', '>=', now()->subDays(30))
+                ->selectRaw('fecha_reporte, COUNT(*) as total')->groupBy('fecha_reporte')->orderBy('fecha_reporte')
+                ->get()->mapWithKeys(fn ($r) => [Carbon::parse($r->fecha_reporte)->format('d/m') => $r->total]),
+            'promedioHoras' => (float) $base()->avg('tiempo_estancia'),
+            'recientes' => $base()->with('unidad')->latest()->limit(8)->get(),
+            'dispositivos' => DispositivoRevision::opciones(),
+            'estados' => EstadoRevision::opciones(),
+        ]);
     }
 
     public function create()
     {
-        $unidades = Unidad::with('zona')
-                          ->where('activo', true)
-                          ->orderBy('numero_economico')
-                          ->get(['id', 'numero_economico', 'nombre_unidad', 'zona_id']);
-
-        $disp_opciones = RevisionOptocontrol::DISP_OPCIONES;
-        $status_opciones = RevisionOptocontrol::STATUS_OPCIONES;
-
-        return view('admin.revisiones-optocontrol.create', compact(
-            'unidades',
-            'disp_opciones',
-            'status_opciones'
-        ));
+        return view('admin.revisiones.form', $this->datosFormulario(new RevisionOptocontrol([
+            'fecha_reporte' => today(), 'hora_entrada' => now()->format('H:i'), 'status' => EstadoRevision::Pendiente,
+        ])));
     }
 
-    public function store(Request $request)
+    public function store(RevisionRequest $request)
     {
-        $validated = $request->validate([
-            'disp'            => 'required|in:' . implode(',', RevisionOptocontrol::DISP_OPCIONES),
-            'unidad_id'       => 'required|exists:unidads,id',
-            'fecha_reporte'   => 'required|date',
-            'hora_entrada'    => 'required',
-            'hora_salida'     => 'nullable',
-            'ruta'            => 'nullable|string|max:255',
-            'problema'        => 'required|string',
-            'solucion'        => 'nullable|string',
-            'status'          => 'required|in:' . implode(',', RevisionOptocontrol::STATUS_OPCIONES),
-            'tiempo_estancia' => 'nullable|numeric|min:0',
-            'responsable'     => 'nullable|string|max:255',
-        ]);
+        $revision = RevisionOptocontrol::create($this->completar($request->validated()) + ['created_by' => $request->user()->id]);
+        BitacoraService::registrar('revision.creada', $revision);
 
-        try {
-            DB::beginTransaction();
+        return redirect()->route('admin.revisiones-optocontrol.show', $revision)->with('success', 'Revision registrada.');
+    }
 
-            $unidad = Unidad::findOrFail($validated['unidad_id']);
-            $validated['nombre_unidad'] = $unidad->nombre_unidad;
-            $validated['created_by']    = auth()->id();
+    public function show(RevisionOptocontrol $revision)
+    {
+        return view('admin.revisiones.show', ['revision' => $revision->load(['unidad.zona', 'creador'])]);
+    }
 
-            // Si no se envio ruta, usar la zona de la unidad
-            if (empty($validated['ruta']) && $unidad->zona) {
-                $validated['ruta'] = $unidad->zona->nombre;
-            }
+    public function edit(RevisionOptocontrol $revision)
+    {
+        return view('admin.revisiones.form', $this->datosFormulario($revision));
+    }
 
-            // Calcular tiempo de estancia
-            if (!empty($validated['hora_entrada']) && !empty($validated['hora_salida'])) {
-                $entrada = Carbon::parse($validated['hora_entrada']);
-                $salida  = Carbon::parse($validated['hora_salida']);
-                if ($salida->lessThan($entrada)) {
-                    $salida->addDay();
-                }
-                $validated['tiempo_estancia'] = round($entrada->diffInMinutes($salida) / 60, 2);
-            }
+    public function update(RevisionRequest $request, RevisionOptocontrol $revision)
+    {
+        $revision->update($this->completar($request->validated()));
+        BitacoraService::registrar('revision.actualizada', $revision);
 
-            RevisionOptocontrol::create($validated);
+        return redirect()->route('admin.revisiones-optocontrol.show', $revision)->with('success', 'Revision actualizada.');
+    }
 
-            DB::commit();
+    public function destroy(RevisionOptocontrol $revision)
+    {
+        BitacoraService::registrar('revision.eliminada', $revision);
+        $revision->delete();
 
-            return redirect()
-                ->route('admin.revisiones-optocontrol.index')
-                ->with('success', 'Revision registrada correctamente.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withInput()
-                ->with('error', 'Error al registrar la revision: ' . $e->getMessage());
+        return redirect()->route('admin.revisiones-optocontrol.index')->with('success', 'Revision eliminada.');
+    }
+
+    /** Calcula ruta por defecto y tiempo de estancia (antes duplicado en store y update). */
+    private function completar(array $datos): array
+    {
+        if (empty($datos['ruta'])) {
+            $datos['ruta'] = Unidad::with('zona')->find($datos['unidad_id'])?->zona?->nombre;
         }
-    }
-
-    public function show($id)
-    {
-        $revision = RevisionOptocontrol::with(['unidad', 'creador'])->findOrFail($id);
-        return view('admin.revisiones-optocontrol.show', compact('revision'));
-    }
-
-    public function edit($id)
-    {
-        $revision = RevisionOptocontrol::findOrFail($id);
-        $unidades = Unidad::with('zona')
-                          ->where('activo', true)
-                          ->orderBy('numero_economico')
-                          ->get(['id', 'numero_economico', 'nombre_unidad', 'zona_id']);
-
-        $disp_opciones   = RevisionOptocontrol::DISP_OPCIONES;
-        $status_opciones = RevisionOptocontrol::STATUS_OPCIONES;
-
-        return view('admin.revisiones-optocontrol.edit', compact(
-            'revision',
-            'unidades',
-            'disp_opciones',
-            'status_opciones'
-        ));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $revision = RevisionOptocontrol::findOrFail($id);
-
-        $validated = $request->validate([
-            'disp'            => 'required|in:' . implode(',', RevisionOptocontrol::DISP_OPCIONES),
-            'unidad_id'       => 'required|exists:unidads,id',
-            'fecha_reporte'   => 'required|date',
-            'hora_entrada'    => 'required',
-            'hora_salida'     => 'nullable',
-            'ruta'            => 'nullable|string|max:255',
-            'problema'        => 'required|string',
-            'solucion'        => 'nullable|string',
-            'status'          => 'required|in:' . implode(',', RevisionOptocontrol::STATUS_OPCIONES),
-            'tiempo_estancia' => 'nullable|numeric|min:0',
-            'responsable'     => 'nullable|string|max:255',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $unidad = Unidad::findOrFail($validated['unidad_id']);
-            $validated['nombre_unidad'] = $unidad->nombre_unidad;
-
-            if (empty($validated['ruta']) && $unidad->zona) {
-                $validated['ruta'] = $unidad->zona->nombre;
+        $datos['tiempo_estancia'] = null;
+        if (! empty($datos['hora_salida'])) {
+            $entrada = Carbon::createFromFormat('H:i', $datos['hora_entrada']);
+            $salida = Carbon::createFromFormat('H:i', $datos['hora_salida']);
+            if ($salida->lessThan($entrada)) {
+                $salida->addDay();
             }
-
-            if (!empty($validated['hora_entrada']) && !empty($validated['hora_salida'])) {
-                $entrada = Carbon::parse($validated['hora_entrada']);
-                $salida  = Carbon::parse($validated['hora_salida']);
-                if ($salida->lessThan($entrada)) {
-                    $salida->addDay();
-                }
-                $validated['tiempo_estancia'] = round($entrada->diffInMinutes($salida) / 60, 2);
-            }
-
-            $revision->update($validated);
-
-            DB::commit();
-
-            return redirect()
-                ->route('admin.revisiones-optocontrol.index')
-                ->with('success', 'Revision actualizada correctamente.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return back()->withInput()
-                ->with('error', 'Error al actualizar la revision: ' . $e->getMessage());
-        }
-    }
-
-    public function destroy($id)
-    {
-        try {
-            $revision = RevisionOptocontrol::findOrFail($id);
-            $revision->delete();
-
-            return redirect()
-                ->route('admin.revisiones-optocontrol.index')
-                ->with('success', 'Revision eliminada correctamente.');
-        } catch (\Exception $e) {
-            return back()->with('error', 'Error al eliminar la revision: ' . $e->getMessage());
-        }
-    }
-
-    /**
-     * Devuelve datos de la unidad (nombre, ruta) via AJAX
-     */
-    public function getUnidadData($id)
-    {
-        $unidad = Unidad::with('zona')->findOrFail($id);
-        return response()->json([
-            'nombre_unidad' => $unidad->nombre_unidad,
-            'ruta'          => $unidad->zona->nombre ?? null,
-        ]);
-    }
-
-    /**
-     * Dashboard estilo Power BI
-     */
-    public function dashboard(Request $request)
-    {
-        $query = RevisionOptocontrol::query();
-
-        if ($request->filled('disp'))         $query->where('disp', $request->disp);
-        if ($request->filled('status'))       $query->where('status', $request->status);
-        if ($request->filled('fecha_desde'))  $query->whereDate('fecha_reporte', '>=', $request->fecha_desde);
-        if ($request->filled('fecha_hasta'))  $query->whereDate('fecha_reporte', '<=', $request->fecha_hasta);
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('problema', 'ILIKE', "%{$search}%")
-                  ->orWhere('solucion', 'ILIKE', "%{$search}%")
-                  ->orWhere('nombre_unidad', 'ILIKE', "%{$search}%")
-                  ->orWhere('ruta', 'ILIKE', "%{$search}%");
-            });
+            $datos['tiempo_estancia'] = round($entrada->diffInMinutes($salida) / 60, 2);
         }
 
-        // KPIs
-        $total        = (clone $query)->count();
-        $pendientes   = (clone $query)->where('status', 'pendiente')->count();
-        $en_proceso   = (clone $query)->where('status', 'en_proceso')->count();
-        $resueltos    = (clone $query)->where('status', 'resuelto')->count();
-        $cancelados   = (clone $query)->where('status', 'cancelado')->count();
-        $ultimos30    = RevisionOptocontrol::where('fecha_reporte', '>=', now()->subDays(30))->count();
+        return $datos;
+    }
 
-        // Recientes
-        $recientes = (clone $query)->with(['unidad', 'creador'])
-                                   ->orderBy('created_at', 'desc')
-                                   ->limit(10)
-                                   ->get();
+    private function filtros(Request $request): array
+    {
+        return $request->only(['disp', 'status', 'desde', 'hasta', 'search']) + ['unidad_id' => Unidad::decodeHashid($request->unidad)];
+    }
 
-        // Distribucion por dispositivo
-        $distribucion_disp = (clone $query)
-            ->select('disp', DB::raw('count(*) as total'))
-            ->groupBy('disp')
-            ->pluck('total', 'disp')
-            ->toArray();
-
-        // Distribucion por status
-        $distribucion_status = (clone $query)
-            ->select('status', DB::raw('count(*) as total'))
-            ->groupBy('status')
-            ->pluck('total', 'status')
-            ->toArray();
-
-        // Tendencia ultimos 30 dias
-        $tendenciaRaw = RevisionOptocontrol::where('fecha_reporte', '>=', now()->subDays(30))
-            ->select('fecha_reporte', DB::raw('count(*) as total'))
-            ->groupBy('fecha_reporte')
-            ->orderBy('fecha_reporte')
-            ->get();
-
-        $tendencia_labels = $tendenciaRaw->map(fn($r) => Carbon::parse($r->fecha_reporte)->format('d/m'))->toArray();
-        $tendencia_data   = $tendenciaRaw->pluck('total')->toArray();
-
-        // Revisiones por ruta
-        $rutasRaw = (clone $query)
-            ->select('ruta', DB::raw('count(*) as total'))
-            ->whereNotNull('ruta')
-            ->groupBy('ruta')
-            ->orderByDesc('total')
-            ->limit(8)
-            ->get();
-
-        $rutas_labels = $rutasRaw->pluck('ruta')->toArray();
-        $rutas_data   = $rutasRaw->pluck('total')->toArray();
-
-        // Top 5 unidades
-        $unidadesRaw = (clone $query)
-            ->select('unidad_id', 'nombre_unidad', DB::raw('count(*) as total'))
-            ->groupBy('unidad_id', 'nombre_unidad')
-            ->orderByDesc('total')
-            ->limit(5)
-            ->get();
-
-        $unidades_labels = $unidadesRaw->map(fn($u) => $u->nombre_unidad ?? ('ID ' . $u->unidad_id))->toArray();
-        $unidades_data   = $unidadesRaw->pluck('total')->toArray();
-
-        // Labels legibles
-        $labels_disp = array_map(function ($key) {
-            $map = [
-                'barras'   => 'Barras',
-                'telpo'    => 'Telpo',
-                'gps'      => 'GPS',
-                'camaras'  => 'Camaras',
-                'revision' => 'Revision',
-                'taller'   => 'Taller',
-            ];
-            return $map[$key] ?? $key;
-        }, array_keys($distribucion_disp));
-
-        $labels_status = array_map(function ($key) {
-            $map = [
-                'pendiente'  => 'Pendiente',
-                'en_proceso' => 'En Proceso',
-                'resuelto'   => 'Resuelto',
-                'cancelado'  => 'Cancelado',
-            ];
-            return $map[$key] ?? $key;
-        }, array_keys($distribucion_status));
-
-        $disp_opciones   = RevisionOptocontrol::DISP_OPCIONES;
-        $status_opciones = RevisionOptocontrol::STATUS_OPCIONES;
-
-        return view('admin.revisiones-optocontrol.dashboard', compact(
-            'total', 'pendientes', 'en_proceso', 'resueltos', 'cancelados', 'ultimos30',
-            'recientes',
-            'distribucion_disp', 'distribucion_status',
-            'labels_disp', 'labels_status',
-            'tendencia_labels', 'tendencia_data',
-            'rutas_labels', 'rutas_data',
-            'unidades_labels', 'unidades_data',
-            'disp_opciones', 'status_opciones'
-        ));
+    private function datosFormulario(RevisionOptocontrol $revision): array
+    {
+        return [
+            'revision' => $revision,
+            'unidades' => Catalogos::unidades(),
+            'dispositivos' => DispositivoRevision::opciones(),
+            'estados' => EstadoRevision::opciones(),
+        ];
     }
 }

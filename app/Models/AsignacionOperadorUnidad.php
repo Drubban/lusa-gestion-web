@@ -4,20 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * Historial de que operador maneja que unidad. Toda alta/baja pasa por AsignacionService.
+ */
 class AsignacionOperadorUnidad extends Model
 {
     use HasFactory;
 
     protected $table = 'asignacion_operador_unidad';
 
-    protected $fillable = [
-        'operador_id',
-        'unidad_id',
-        'fecha_inicio',
-        'fecha_fin',
-        'vigente',
-    ];
+    protected $fillable = ['operador_id', 'unidad_id', 'fecha_inicio', 'fecha_fin', 'vigente'];
 
     protected $casts = [
         'fecha_inicio' => 'date',
@@ -25,33 +23,13 @@ class AsignacionOperadorUnidad extends Model
         'vigente' => 'boolean',
     ];
 
-    // Relación con Operador
-    public function operador()
+    public function operador(): BelongsTo
     {
         return $this->belongsTo(Operador::class);
     }
 
-    // Relación con Unidad
-    public function unidad()
+    public function unidad(): BelongsTo
     {
         return $this->belongsTo(Unidad::class);
-    }
-
-    // 🔥 RELACIÓN CON DOCUMENTOS DE MANTENIMIENTO - AGREGAR ESTA
-    public function documentosMantenimiento()
-    {
-        return $this->hasMany(DocumentoMantenimiento::class, 'asignacion_id');
-    }
-
-    // 🔥 RELACIÓN CON DOCUMENTOS DE CAPACITACIÓN - AGREGAR ESTA (opcional)
-    public function documentosCapacitacion()
-    {
-        return $this->hasMany(DocumentoCapacitacion::class, 'asignacion_id');
-    }
-
-    // 🔥 RELACIÓN CON MOVIMIENTOS - AGREGAR ESTA (opcional)
-    public function movimientos()
-    {
-        return $this->hasMany(MovimientoDepartamento::class, 'asignacion_id');
     }
 }

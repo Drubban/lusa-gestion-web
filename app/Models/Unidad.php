@@ -2,152 +2,117 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHashid;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Unidad extends Model
 {
-    use HasFactory;
+    use HasFactory, HasHashid;
 
     protected $table = 'unidades';
 
-    protected $fillable = [
-        'numero_economico',
-        'nombre_unidad',
-        'equipo_telpo',
-        'equipo_gps',
-        'equipo_barras',
-        'zona_id',
-        'codigo_qr',
-        'token_qr',
-        'activo',
-    ];
+    protected $fillable = ['numero_economico', 'nombre_unidad', 'zona_id', 'token_qr', 'activo'];
 
-    protected $casts = [
-        'activo' => 'boolean',
-        'equipo_telpo' => 'boolean',
-        'equipo_gps' => 'boolean',
-        'equipo_barras' => 'boolean',
-    ];
+    protected $hidden = ['token_qr'];
 
-    // Mutador para activo
-    public function setActivoAttribute($value)
+    protected $casts = ['activo' => 'boolean'];
+
+    protected static function booted(): void
     {
-        $this->attributes['activo'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        static::creating(function (Unidad $unidad) {
+            $unidad->token_qr ??= self::nuevoTokenQr();
+        });
     }
 
-    // 🔥 RELACIÓN CON MOVIMIENTOS - AGREGAR ESTO
-    public function movimientos()
+    public static function nuevoTokenQr(): string
     {
-        return $this->hasMany(MovimientoDepartamento::class, 'unidad_id');
+        return Str::random(40);
     }
 
-    // 🔥 RELACIÓN CON MOVIMIENTOS A TRAVÉS DE ASIGNACIONES (alternativa)
-    public function movimientosHistoricos()
-    {
-        return $this->hasManyThrough(
-            MovimientoDepartamento::class,
-            AsignacionOperadorUnidad::class,
-            'unidad_id',      // Foreign key en asignacion_operador_unidad
-            'asignacion_id',  // Foreign key en movimiento_departamento
-            'id',             // Local key en unidades
-            'id'              // Local key en asignacion_operador_unidad
-        );
-    }
-
-    public function getEquipoTelpoAttribute($value)
-    {
-        return $value ?? 'Sin asignar';
-    }
-
-    public function getEquipoGpsAttribute($value)
-    {
-        return $value ?? 'Sin asignar';
-    }
-
-    public function getEquipoBarrasAttribute($value)
-    {
-        return $value ?? 'Sin asignar';
-    }
-
-    // Relación con Zona
-    public function zona()
+    public function zona(): BelongsTo
     {
         return $this->belongsTo(Zona::class);
     }
 
-    // Relación con AsignacionOperadorUnidad
-    public function asignaciones()
+    public function asignaciones(): HasMany
     {
         return $this->hasMany(AsignacionOperadorUnidad::class);
     }
 
-    public function asignacionVigente()
+    public function asignacionVigente(): HasOne
     {
-        return $this->hasOne(AsignacionOperadorUnidad::class)
-            ->where('vigente', true)
-            ->with('operador');
+        return $this->hasOne(AsignacionOperadorUnidad::class)->where('vigente', true)->latestOfMany('fecha_inicio');
     }
 
-    // Relación con Documentos de Mantenimiento (a través de asignaciones)
-    public function documentosMantenimiento()
+    public function movimientos(): HasMany
     {
-        return $this->hasManyThrough(
-            DocumentoMantenimiento::class,
-            AsignacionOperadorUnidad::class,
-            'unidad_id',
-            'asignacion_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(MovimientoDepartamento::class);
     }
 
-    // Relación con Documentos de Capacitación (a través de asignaciones)
-    public function documentosCapacitacion()
+    public function documentosMantenimiento(): HasMany
     {
-        return $this->hasManyThrough(
-            DocumentoCapacitacion::class,
-            AsignacionOperadorUnidad::class,
-            'unidad_id',
-            'asignacion_id',
-            'id',
-            'id'
-        );
+        return $this->hasMany(DocumentoMantenimiento::class);
     }
 
-    // Método para obtener el operador actual
-    public function getOperadorActualAttribute()
+    public function ultimoMantenimiento(): HasOne
     {
-        return $this->asignacionVigente?->operador;
+        return $this->hasOne(DocumentoMantenimiento::class)->latestOfMany('fecha');
     }
 
-    // Método para obtener el nombre de la zona
-    public function getNombreZonaAttribute()
+    public function documentosCapacitacion(): HasMany
     {
-        return $this->zona?->nombre;
+        return $this->hasMany(DocumentoCapacitacion::class);
     }
 
-    public function tecnologias()
+    public function tecnologias(): HasMany
     {
         return $this->hasMany(Tecnologia::class);
     }
 
-    // Agregar esta relación
-    public function agendamientos()
+    public function agendamientos(): HasMany
     {
         return $this->hasMany(AgendamientoMantenimiento::class);
     }
 
-    public function agendamientoPendiente()
+    public function agendamientoPendiente(): HasOne
     {
-        return $this->hasOne(AgendamientoMantenimiento::class)
-            ->where('estado', 'pendiente')
-            ->orderBy('fecha_agendada', 'asc');
+        return $this->hasOne(AgendamientoMantenimiento::class)->where('estado', 'pendiente')->oldestOfMany('fecha_agendada');
     }
 
-    public function ultimoAgendamiento()
+    public function revisiones(): HasMany
     {
-        return $this->hasOne(AgendamientoMantenimiento::class)
-            ->orderBy('created_at', 'desc');
+        return $this->hasMany(RevisionOptocontrol::class);
+    }
+
+    public function getOperadorActualAttribute(): ?Operador
+    {
+        return $this->asignacionVigente?->operador;
+    }
+
+    public function getEtiquetaAttribute(): string
+    {
+        return trim($this->numero_economico . ($this->nombre_unidad ? ' - ' . $this->nombre_unidad : ''));
+    }
+
+    public function scopeActivas($query)
+    {
+        return $query->where('activo', true)->orderBy('numero_economico');
+    }
+
+    public function scopeBuscar($query, ?string $termino)
+    {
+        if (! $termino) {
+            return $query;
+        }
+
+        return $query->where(fn ($q) => $q
+            ->where('numero_economico', 'ILIKE', "%{$termino}%")
+            ->orWhere('nombre_unidad', 'ILIKE', "%{$termino}%")
+            ->orWhereHas('asignacionVigente.operador', fn ($o) => $o->where('nombre_completo', 'ILIKE', "%{$termino}%")));
     }
 }

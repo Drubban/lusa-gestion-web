@@ -1,112 +1,44 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', 'Historial de mantenimiento')
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">
-            <i class="fas fa-history me-2"></i>Historial de Mantenimiento
-            <small class="text-muted fs-6">{{ $unidad->numero_economico }} - {{ $unidad->nombre_unidad ?? 'Sin nombre' }}</small>
-        </h1>
-        <div>
-            <a href="{{ route('admin.mantenimiento.dashboard') }}" class="btn btn-secondary rounded-pill px-4">
-                <i class="fas fa-arrow-left me-2"></i>Volver al tablero
-            </a>
-            <a href="{{ route('admin.documentos-mantenimiento.create') }}?unidad={{ $unidad->id }}" 
-               class="btn btn-primary rounded-pill px-4">
-                <i class="fas fa-plus me-2"></i>Nuevo mantenimiento
-            </a>
-        </div>
-    </div>
-
-    <!-- Info de la unidad -->
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted">Unidad</h6>
-                    <h5>{{ $unidad->numero_economico }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted">Zona</h6>
-                    <h5>{{ ucfirst($unidad->zona->nombre ?? 'N/A') }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted">Operador</h6>
-                    <h5>{{ $unidad->asignacionVigente->operador->nombre_completo ?? 'Sin operador' }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow-sm">
-                <div class="card-body">
-                    <h6 class="text-muted">Tecnologias</h6>
-                    <h5>
-                        @foreach($unidad->tecnologias as $tec)
-                            <span class="badge bg-secondary">{{ strtoupper($tec->tipo) }}</span>
-                        @endforeach
-                    </h5>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Historial -->
-    <div class="card shadow-sm border-0 rounded-4">
-        <div class="card-header bg-white fw-bold">
-            <i class="fas fa-list me-2"></i>Historial de Mantenimientos
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Hora</th>
-                            <th>Zona</th>
-                            <th>Tecnologia</th>
-                            <th>Prueba barras</th>
-                            <th>Comentarios</th>
-                            <th>Vigente</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($mantenimientos as $doc)
-                        <tr>
-                            <td>{{ \Carbon\Carbon::parse($doc->fecha)->format('d/m/Y') }}</td>
-                            <td>{{ $doc->hora }}</td>
-                            <td>{{ strtoupper($doc->rol ?? '') }}</td>
-                            <td>{{ $doc->tecnologia_reportada }}</td>
-                            <td>{{ $doc->prueba_barras ?? '-' }}</td>
-                            <td>{{ \Str::limit($doc->comentarios, 30) }}</td>
-                            <td>{!! $doc->vigente ? '<span class="badge bg-success">Vigente</span>' : '<span class="badge bg-secondary">No vigente</span>' !!}</td>
-                            <td>
-                                <a href="{{ route('admin.documentos-mantenimiento.show', $doc) }}" 
-                                   class="btn btn-sm btn-outline-info"><i class="fas fa-eye"></i></a>
-                                <a href="{{ route('admin.documentos-mantenimiento.exportar-pdf', $doc) }}" 
-                                   class="btn btn-sm btn-outline-danger"><i class="fas fa-file-pdf"></i></a>
-                            </td>
-                        </tr>
-                        @empty
-                        <tr>
-                            <td colspan="8" class="text-center py-4">
-                                <i class="fas fa-calendar-alt fa-2x d-block mb-2 text-muted"></i>
-                                No hay mantenimientos registrados para esta unidad.
-                            </td>
-                        </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+<x-page-header :title="'Historial de ' . $unidad->numero_economico" :subtitle="$unidad->nombre_unidad" :back="route('admin.mantenimiento.index')" back-label="Estado de mantenimiento">
+    <x-slot:actions>
+        <a href="{{ route('admin.agendamientos.create', ['unidad' => $unidad->hashid]) }}" class="btn btn-light"><i class="bi bi-calendar-plus me-1"></i>Agendar</a>
+        <a href="{{ route('admin.documentos-mantenimiento.create', ['unidad' => $unidad->hashid]) }}" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Registrar servicio</a>
+    </x-slot:actions>
+</x-page-header>
+<div class="row g-3">
+    <div class="col-lg-7"><div class="card">
+        <div class="card-header">Servicios realizados <x-badge tone="primary">{{ $mantenimientos->count() }}</x-badge></div>
+        <div class="table-responsive"><table class="table">
+            <thead><tr><th>Folio</th><th>Fecha</th><th>Operador</th><th>Tecnologia</th></tr></thead>
+            <tbody>
+            @forelse ($mantenimientos as $d)
+                <tr>
+                    <td><a href="{{ route('admin.documentos-mantenimiento.show', $d) }}">{{ $d->folio }}</a></td>
+                    <td class="tabular">{{ $d->fecha?->format('d/m/Y') }}</td>
+                    <td>{{ $d->operador?->nombre_completo ?? '-' }}</td>
+                    <td class="small">{{ implode(', ', $d->tecnologias) }}</td>
+                </tr>
+            @empty
+                <tr><td colspan="4"><x-empty text="Sin servicios registrados." /></td></tr>
+            @endforelse
+            </tbody>
+        </table></div>
+    </div></div>
+    <div class="col-lg-5"><div class="card">
+        <div class="card-header">Agendamientos</div>
+        <ul class="list-group list-group-flush">
+            @forelse ($unidad->agendamientos as $a)
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <span class="tabular">{{ $a->fecha_agendada?->format('d/m/Y') }}<span class="d-block small text-muted">{{ $a->motivo_etiqueta }}</span></span>
+                    <x-badge :tone="$a->estado->tono()">{{ $a->estado->etiqueta() }}</x-badge>
+                </li>
+            @empty
+                <li class="list-group-item text-muted small">Sin agendamientos.</li>
+            @endforelse
+        </ul>
+    </div></div>
 </div>
 @endsection

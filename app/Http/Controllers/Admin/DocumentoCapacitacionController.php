@@ -3,202 +3,84 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AsignacionOperadorUnidad;
+use App\Http\Requests\DocumentoCapacitacionRequest;
 use App\Models\DocumentoCapacitacion;
+use App\Services\BitacoraService;
 use App\Services\DocumentoService;
+use App\Support\Catalogos;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
-use PhpOffice\PhpWord\IOFactory;
-use PhpOffice\PhpWord\PhpWord;
-use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
 
 class DocumentoCapacitacionController extends Controller
 {
-    protected DocumentoService $documentoService;
+    public function __construct(private readonly DocumentoService $documentos) {}
 
-    public function __construct(DocumentoService $documentoService)
+    public function index(Request $request)
     {
-        $this->documentoService = $documentoService;
-    }
-
-    public function index()
-    {
-        $documentos = DocumentoCapacitacion::with('asignacion.operador', 'asignacion.unidad')
-            ->orderBy('created_at', 'desc')
-            ->paginate(20);
+        $documentos = DocumentoCapacitacion::with(['unidad', 'operador'])
+            ->when($request->search, fn ($q, $t) => $q->where(fn ($w) => $w
+                ->whereHas('operador', fn ($o) => $o->buscar($t))
+                ->orWhereHas('unidad', fn ($u) => $u->where('numero_economico', 'ILIKE', "%{$t}%"))))
+            ->latest('fecha')->latest('id')
+            ->paginate(20)->withQueryString();
 
         return view('admin.documentos.capacitacion.index', compact('documentos'));
     }
 
-    public function show($id)
+    public function create()
     {
-        $documento = DocumentoCapacitacion::with(['asignacion.unidad.zona', 'asignacion.operador'])
-            ->findOrFail($id);
+        return view('admin.documentos.capacitacion.form', $this->datosFormulario(
+            new DocumentoCapacitacion(['fecha' => today(), 'hora' => now()->format('H:i'), 'vigente' => true]),
+        ));
+    }
+
+    public function store(DocumentoCapacitacionRequest $request)
+    {
+        $documento = $this->documentos->guardarCapacitacion($request->validated());
+
+        return redirect()->route('admin.documentos-capacitacion.show', $documento)->with('success', 'Constancia de capacitacion registrada.');
+    }
+
+    public function show(DocumentoCapacitacion $documento)
+    {
+        $documento->load(['unidad.zona', 'operador', 'usuario', 'firmas']);
 
         return view('admin.documentos.capacitacion.show', compact('documento'));
     }
 
-    public function create()
+    public function edit(DocumentoCapacitacion $documento)
     {
-        $asignaciones = AsignacionOperadorUnidad::with('operador', 'unidad')
-            ->where('vigente', true)
-            ->get();
-
-        return view('admin.documentos.capacitacion.create', compact('asignaciones'));
+        return view('admin.documentos.capacitacion.form', $this->datosFormulario($documento));
     }
 
-    public function store(Request $request)
+    public function update(DocumentoCapacitacionRequest $request, DocumentoCapacitacion $documento)
     {
-        Log::info('=== INTENTO DE GUARDAR CAPACITACIÓN ===');
-        Log::info('Datos recibidos:', $request->all());
+        $this->documentos->guardarCapacitacion($request->validated(), $documento);
 
-        try {
-            $validated = $request->validate([
-                'asignacion_id' => 'required|exists:asignacion_operador_unidad,id',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'vigente' => 'sometimes|boolean',
-            ]);
-
-            // Obtener la asignación para obtener datos adicionales
-            $asignacion = AsignacionOperadorUnidad::with('operador', 'unidad')
-                ->findOrFail($validated['asignacion_id']);
-
-            // Preparar datos para el servicio
-            $data = [
-                'asignacion_id' => $validated['asignacion_id'],
-                'operador_id' => $asignacion->operador_id,
-                'unidad_id' => $asignacion->unidad_id,
-                'fecha' => $validated['fecha'],
-                'hora' => $validated['hora'],
-                'vigente' => $request->has('vigente'),
-            ];
-
-            // Usar el servicio para crear el documento
-            $documento = $this->documentoService->crearDocumentoCapacitacion($data);
-
-            Log::info('✅ Documento de capacitación creado con ID: ' . $documento->id);
-
-            return redirect()->route('admin.documentos-capacitacion.index')
-                ->with('success', 'Documento de capacitación creado exitosamente.');
-
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('❌ Error de validación: ' . json_encode($e->errors()));
-            throw $e;
-        } catch (\Exception $e) {
-            Log::error('❌ Error al crear documento de capacitación: ' . $e->getMessage());
-            Log::error($e->getTraceAsString());
-            
-            return back()->withErrors(['error' => 'Error al crear el documento: ' . $e->getMessage()])
-                ->withInput();
-        }
+        return redirect()->route('admin.documentos-capacitacion.show', $documento)->with('success', 'Constancia actualizada.');
     }
 
-    public function edit($id)
+    public function destroy(DocumentoCapacitacion $documento)
     {
-        $documento = DocumentoCapacitacion::findOrFail($id);
-        // Convertir la fecha a objeto Carbon si no lo está
-        $documento->fecha = Carbon::parse($documento->fecha);
-        
-        $asignaciones = AsignacionOperadorUnidad::with('operador', 'unidad')
-            ->where('vigente', true)
-            ->get();
+        BitacoraService::registrar('documento_capacitacion.eliminado', $documento);
+        $documento->firmas()->delete();
+        $documento->delete();
 
-        return view('admin.documentos.capacitacion.edit', compact('documento', 'asignaciones'));
+        return redirect()->route('admin.documentos-capacitacion.index')->with('success', 'Constancia eliminada.');
     }
 
-    public function update(Request $request, $id)
+    public function pdf(DocumentoCapacitacion $documento)
     {
-        $documento = DocumentoCapacitacion::findOrFail($id);
+        $documento->load(['unidad.zona', 'operador', 'firmas']);
 
-        try {
-            $validated = $request->validate([
-                'asignacion_id' => 'required|exists:asignacion_operador_unidad,id',
-                'fecha' => 'required|date',
-                'hora' => 'required',
-                'vigente' => 'sometimes|boolean',
-            ]);
-
-            // Obtener la asignación para actualizar datos relacionados
-            $asignacion = AsignacionOperadorUnidad::findOrFail($validated['asignacion_id']);
-
-            $documento->update([
-                'asignacion_id' => $validated['asignacion_id'],
-                'operador_id' => $asignacion->operador_id,
-                'unidad_id' => $asignacion->unidad_id,
-                'fecha' => $validated['fecha'],
-                'hora' => $validated['hora'],
-                'vigente' => $request->has('vigente'),
-            ]);
-
-            Log::info('✅ Documento de capacitación actualizado ID: ' . $id);
-
-            return redirect()->route('admin.documentos-capacitacion.index')
-                ->with('success', 'Documento de capacitación actualizado exitosamente.');
-
-        } catch (\Exception $e) {
-            Log::error('❌ Error al actualizar documento: ' . $e->getMessage());
-            
-            return back()->withErrors(['error' => 'Error al actualizar: ' . $e->getMessage()])
-                ->withInput();
-        }
+        return Pdf::loadView('admin.documentos.plantilla_capacitacion', compact('documento'))
+            ->setPaper('letter')
+            ->setOptions(['isRemoteEnabled' => false, 'defaultFont' => 'DejaVu Sans'])
+            ->download("capacitacion_{$documento->folio}.pdf");
     }
 
-    public function destroy($id)
+    private function datosFormulario(DocumentoCapacitacion $documento): array
     {
-        try {
-            $documento = DocumentoCapacitacion::findOrFail($id);
-            $documento->delete();
-
-            Log::info('✅ Documento de capacitación eliminado ID: ' . $id);
-
-            return redirect()->route('admin.documentos-capacitacion.index')
-                ->with('success', 'Documento de capacitación eliminado exitosamente.');
-
-        } catch (\Exception $e) {
-            Log::error('❌ Error al eliminar documento: ' . $e->getMessage());
-            
-            return back()->withErrors(['error' => 'Error al eliminar: ' . $e->getMessage()]);
-        }
-    }
-
-    public function exportarPdf($id)
-    {
-        $documento = DocumentoCapacitacion::with(['asignacion.unidad.zona', 'asignacion.operador'])
-            ->findOrFail($id);
-        
-        $pdf = Pdf::loadView('admin.documentos.plantilla_capacitacion', compact('documento'));
-
-        return $pdf->download("capacitacion_{$documento->id}.pdf");
-    }
-
-    public function exportarWord($id)
-    {
-        $documento = DocumentoCapacitacion::with(['asignacion.unidad', 'asignacion.operador.zona'])
-            ->findOrFail($id);
-        
-        $phpWord = new PhpWord;
-        $section = $phpWord->addSection();
-        
-        $section->addTitle('Conformidad de Capacitación', 1);
-        $zonaNombre = $documento->asignacion->unidad->zona->nombre ?? 'N/A';
-        $section->addText("Zona: {$zonaNombre}");
-        $section->addText("Fecha: {$documento->fecha} Hora: {$documento->hora}");
-        $section->addText("Operador: {$documento->asignacion->operador->nombre_completo} (Clave: {$documento->asignacion->operador->clave_operador})");
-        $section->addText("Unidad: {$documento->asignacion->unidad->numero_economico}");
-        
-        $section->addTextBreak(2);
-        $section->addText('______________________', ['size' => 10]);
-        $section->addText('Firma del operador', ['size' => 8]);
-        $section->addText('______________________', ['size' => 10]);
-        $section->addText('Firma del Ing. a cargo', ['size' => 8]);
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'word_');
-        $objWriter = IOFactory::createWriter($phpWord, 'Word2007');
-        $objWriter->save($tempFile);
-
-        return response()->download($tempFile, "capacitacion_{$documento->id}.docx")
-            ->deleteFileAfterSend(true);
+        return ['documento' => $documento, 'unidades' => Catalogos::unidades(), 'operadores' => Catalogos::operadores()];
     }
 }

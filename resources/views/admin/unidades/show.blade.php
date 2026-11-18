@@ -1,206 +1,80 @@
-@extends('admin.layouts.app')
+@extends('layouts.app')
+@section('title', 'Unidad ' . $unidad->numero_economico)
 
 @section('content')
-<div class="container-fluid px-4">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-3">
-        <h1 class="h3">Detalle de Unidad</h1>
-        <div>
-            <a href="{{ route('admin.unidades.edit', $unidad->id) }}" class="btn btn-warning rounded-pill px-4">
-                <i class="fas fa-edit me-2"></i> Editar
-            </a>
-            <a href="{{ route('admin.unidades.index') }}" class="btn btn-secondary rounded-pill px-4">
-                Volver
-            </a>
-        </div>
+<x-page-header :title="'Unidad ' . $unidad->numero_economico" :subtitle="$unidad->nombre_unidad" :back="route('admin.unidades.index')" back-label="Unidades">
+    <x-slot:actions>
+        <a href="{{ route('admin.documentos-mantenimiento.create', ['unidad' => $unidad->hashid]) }}" class="btn btn-light"><i class="bi bi-file-earmark-plus me-1"></i>Mantenimiento</a>
+        <a href="{{ route('admin.unidades.edit', $unidad) }}" class="btn btn-primary"><i class="bi bi-pencil me-1"></i>Editar</a>
+    </x-slot:actions>
+</x-page-header>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card mb-3"><div class="card-body">
+            <div class="card-title-sm">Datos generales</div>
+            <x-dl :items="[
+                'Zona' => ucfirst($unidad->zona?->nombre ?? ''),
+                'Operador' => $unidad->operadorActual ? $unidad->operadorActual->nombre_completo . ' (' . $unidad->operadorActual->clave_operador . ')' : 'Sin asignar',
+                'Proximo mantenimiento' => $unidad->agendamientoPendiente?->fecha_agendada?->format('d/m/Y'),
+                'Registrada' => $unidad->created_at?->format('d/m/Y'),
+            ]">
+                <dt>Estado</dt><dd><x-badge :tone="$unidad->activo ? 'success' : 'muted'" dot>{{ $unidad->activo ? 'Activa' : 'Inactiva' }}</x-badge></dd>
+                <dt>Tecnologias</dt><dd>@forelse($unidad->tecnologias as $t)<x-badge tone="primary" class="me-1">{{ $t->tipo->etiqueta() }}</x-badge>@empty - @endforelse</dd>
+            </x-dl>
+        </div></div>
+        <div class="card qr-card"><div class="card-body">
+            <div class="card-title-sm text-start">Codigo QR</div>
+            <div class="qr-render mx-auto" data-qr="{{ $unidad->token_qr }}" role="img" aria-label="QR de la unidad {{ $unidad->numero_economico }}"></div>
+            <form method="POST" action="{{ route('admin.unidades.regenerar-token', $unidad) }}" class="mt-3" data-confirm="El QR impreso actual dejara de funcionar. Continuar?">
+                @csrf <button class="btn btn-light btn-sm"><i class="bi bi-arrow-repeat me-1"></i>Regenerar QR</button>
+            </form>
+        </div></div>
     </div>
-
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-body p-4">
-                    <div class="row g-4">
-                        <!-- Informacion basica -->
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-2 mb-2">
-                                <strong class="text-muted">Numero Economico</strong>
-                            </div>
-                            <p class="fs-5">{{ $unidad->numero_economico }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-2 mb-2">
-                                <strong class="text-muted">Nombre</strong>
-                            </div>
-                            <p>{{ $unidad->nombre_unidad ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-2 mb-2">
-                                <strong class="text-muted">Zona</strong>
-                            </div>
-                            <p>{{ $unidad->zona->nombre ?? 'N/A' }}</p>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="border-bottom pb-2 mb-2">
-                                <strong class="text-muted">Estado</strong>
-                            </div>
-                            <p>
-                                @if($unidad->activo)
-                                    <span class="badge bg-success">Activa</span>
-                                @else
-                                    <span class="badge bg-danger">Inactiva</span>
-                                @endif
-                            </p>
-                        </div>
-
-                        <!-- EQUIPOS ASIGNADOS - RESUMEN UNIFICADO -->
-                        <div class="col-12">
-                            <hr class="border-2 border-primary">
-                            <h5 class="text-primary"><i class="fas fa-microchip me-2"></i>Equipos Asignados</h5>
-                        </div>
-
-                        <div class="col-12">
-                            @php
-                                $equipos = [];
-                                if ($unidad->equipo_telpo) $equipos[] = 'E.T (Telpo)';
-                                if ($unidad->equipo_gps) $equipos[] = 'E.G (GPS)';
-                                if ($unidad->equipo_barras) $equipos[] = 'E.B (Barras)';
-                            @endphp
-
-                            @if(count($equipos) > 0)
-                                <div class="d-flex flex-wrap gap-2">
-                                    @foreach($equipos as $equipo)
-                                        <span class="badge bg-success fs-6 p-2">
-                                            <i class="fas fa-check-circle me-1"></i> {{ $equipo }}
-                                        </span>
-                                    @endforeach
-                                    <span class="badge bg-secondary fs-6 p-2">
-                                        <i class="fas fa-info-circle me-1"></i> Total: {{ count($equipos) }} equipo(s)
-                                    </span>
-                                </div>
-                            @else
-                                <div class="alert alert-warning mb-0">
-                                    <i class="fas fa-exclamation-triangle me-2"></i>
-                                    Esta unidad no tiene equipos asignados (ET, EG, EB)
-                                </div>
-                            @endif
-                        </div>
-
-                        <!-- QR -->
-                        <div class="col-12 mt-3">
-                            <hr class="border-2 border-secondary">
-                            <h5><i class="fas fa-qrcode me-2"></i>Codigo QR</h5>
-                            <div class="row g-3">
-                                <div class="col-md-8">
-                                    <div class="border-bottom pb-2 mb-2">
-                                        <strong class="text-muted">Codigo QR</strong>
-                                    </div>
-                                    <p><code>{{ $unidad->codigo_qr }}</code></p>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="border-bottom pb-2 mb-2">
-                                        <strong class="text-muted">Token</strong>
-                                    </div>
-                                    <p><code>{{ $unidad->token_qr ?? 'N/A' }}</code></p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Operador Actual -->
-                        <div class="col-12">
-                            <hr class="border-2 border-secondary">
-                            <h5><i class="fas fa-user me-2"></i>Operador Actual</h5>
-                            @if($operadorActual)
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <strong>Nombre:</strong> {{ $operadorActual->nombre_completo }}
-                                    </div>
-                                    <div class="col-md-6">
-                                        <strong>Clave:</strong> {{ $operadorActual->clave_operador }}
-                                    </div>
-                                </div>
-                            @else
-                                <p class="text-muted">No hay operador asignado actualmente</p>
-                            @endif
-                        </div>
-
-                        <!-- Asignaciones Historicas -->
-                        <div class="col-12">
-                            <hr class="border-2 border-secondary">
-                            <h5><i class="fas fa-history me-2"></i>Historial de Asignaciones</h5>
-                            @if($unidad->asignaciones->count() > 0)
-                                <div class="table-responsive">
-                                    <table class="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Operador</th>
-                                                <th>Inicio</th>
-                                                <th>Fin</th>
-                                                <th>Estado</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @foreach($unidad->asignaciones->sortByDesc('fecha_inicio') as $asignacion)
-                                                <tr>
-                                                    <td>{{ $asignacion->operador->nombre_completo ?? 'N/A' }}</td>
-                                                    <td>{{ $asignacion->fecha_inicio->format('d/m/Y') }}</td>
-                                                    <td>{{ $asignacion->fecha_fin ? $asignacion->fecha_fin->format('d/m/Y') : 'Actual' }}</td>
-                                                    <td>
-                                                        @if($asignacion->vigente)
-                                                            <span class="badge bg-success">Vigente</span>
-                                                        @else
-                                                            <span class="badge bg-secondary">Finalizada</span>
-                                                        @endif
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        </tbody>
-                                    </table>
-                                </div>
-                            @else
-                                <p class="text-muted">No hay asignaciones registradas</p>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-header">Ultimos movimientos</div>
+            <div class="table-responsive"><table class="table">
+                <thead><tr><th>Fecha</th><th>Tipo</th><th>Departamento</th><th>Estancia</th><th>Registro</th></tr></thead>
+                <tbody>
+                @forelse ($movimientos as $m)
+                    <tr>
+                        <td class="tabular">{{ $m->fecha_hora->format('d/m/Y H:i') }}</td>
+                        <td><x-badge :tone="$m->tipo->value === 'entrada' ? 'primary' : 'accent'">{{ $m->tipo->etiqueta() }}</x-badge></td>
+                        <td>{{ ucfirst($m->departamento?->nombre) }}</td>
+                        <td>{{ $m->duracion_legible ?? '-' }}</td>
+                        <td>{{ $m->usuario?->nombre_visible }}</td>
+                    </tr>
+                @empty
+                    <tr><td colspan="5"><x-empty text="Sin movimientos registrados." /></td></tr>
+                @endforelse
+                </tbody>
+            </table></div>
         </div>
-
-        <!-- Sidebar -->
-        <div class="col-lg-4">
-            <div class="card shadow-sm border-0 rounded-4">
-                <div class="card-body p-4">
-                    <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>Informacion Adicional</h5>
-                    <hr>
-                    <div class="mb-3">
-                        <strong class="text-muted">ID</strong>
-                        <p><span class="badge bg-secondary">#{{ $unidad->id }}</span></p>
-                    </div>
-                    <div class="mb-3">
-                        <strong class="text-muted">Fecha de creacion</strong>
-                        <p>{{ $unidad->created_at->format('d/m/Y H:i') }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <strong class="text-muted">Ultima actualizacion</strong>
-                        <p>{{ $unidad->updated_at->format('d/m/Y H:i') }}</p>
-                    </div>
-                    <div class="mb-3">
-                        <strong class="text-muted">Codigo QR</strong>
-                        <p><small><code>{{ substr($unidad->codigo_qr, 0, 20) }}...</code></small></p>
-                    </div>
-                    <div class="mb-3">
-                        <strong class="text-muted">Equipos instalados</strong>
-                        <p>
-                            @php
-                                $totalEquipos = 0;
-                                if ($unidad->equipo_telpo) $totalEquipos++;
-                                if ($unidad->equipo_gps) $totalEquipos++;
-                                if ($unidad->equipo_barras) $totalEquipos++;
-                            @endphp
-                            <span class="badge bg-primary">{{ $totalEquipos }} de 3</span>
-                        </p>
-                    </div>
-                </div>
-            </div>
+        <div class="row g-3">
+            <div class="col-md-6"><div class="card h-100">
+                <div class="card-header">Mantenimientos</div>
+                <ul class="list-group list-group-flush">
+                    @forelse ($mantenimientos as $d)
+                        <li class="list-group-item d-flex justify-content-between"><a href="{{ route('admin.documentos-mantenimiento.show', $d) }}">{{ $d->folio }}</a><span class="text-muted small">{{ $d->fecha?->format('d/m/Y') }}</span></li>
+                    @empty
+                        <li class="list-group-item text-muted small">Sin documentos.</li>
+                    @endforelse
+                </ul>
+            </div></div>
+            <div class="col-md-6"><div class="card h-100">
+                <div class="card-header">Historial de operadores</div>
+                <div class="card-body"><ul class="timeline">
+                    @forelse ($unidad->asignaciones as $a)
+                        <li><span class="fw-semibold">{{ $a->operador?->nombre_completo }}</span>
+                            <span class="d-block small text-muted">{{ $a->fecha_inicio?->format('d/m/Y') }} - {{ $a->vigente ? 'actual' : $a->fecha_fin?->format('d/m/Y') }}</span></li>
+                    @empty
+                        <li class="text-muted small">Sin asignaciones.</li>
+                    @endforelse
+                </ul></div>
+            </div></div>
         </div>
     </div>
 </div>
 @endsection
+@push('scripts')<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>@endpush
